@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -24,14 +25,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-development')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 # Read ALLOWED_HOSTS from the environment variable and split it into a list.
 # This allows for multiple hosts to be defined in the .env file, separated by commas.
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 
 # Application definition
@@ -44,8 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'momoapi', # This is the crucial line to add
-    'core',
+    'hotspot', # Assuming your Django application is named 'hotspot'
 ]
 
 MIDDLEWARE = [
@@ -63,7 +63,7 @@ ROOT_URLCONF = 'wifi_hotspot.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -128,12 +128,19 @@ STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # MTN MoMo API settings
+# These variables are loaded from the .env file
+MOMO_CLIENT_ID = os.getenv('MOMO_CLIENT_ID')
+MOMO_COLLECTIONS_API_KEY = os.getenv('MOMO_COLLECTIONS_API_KEY')
 MOMO_API_USER_ID = os.getenv('MOMO_API_USER_ID')
 MOMO_API_KEY = os.getenv('MOMO_API_KEY')
-MOMO_COLLECTIONS_API_KEY = os.getenv('MOMO_COLLECTIONS_API_KEY')
 MOMO_TARGET_ENVIRONMENT = os.getenv('MOMO_TARGET_ENVIRONMENT')
+MOMO_CALLBACK_URL = os.getenv('MOMO_CALLBACK_URL')
+
+# MikroTik API settings
+MIKROTIK_HOST = os.getenv('MIKROTIK_HOST')
+MIKROTIK_USER = os.getenv('MIKROTIK_USER')
+MIKROTIK_PASSWORD = os.getenv('MIKROTIK_PASSWORD')
