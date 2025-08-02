@@ -6,4 +6,3 @@ routeros-api==0.21.0
 requests>=2.25.0
 urllib3==1.26.16
 git+https://github.com/Peter-Kintu/momo-wifi.git#egg=mtnmomo
-momoapi==1.0.1
