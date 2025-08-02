@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Hotspot</title>
+    <style>
+        body { 
+            font-family: sans-serif; 
+            text-align: center; 
+            padding-top: 50px; 
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container { 
+            max-width: 450px; 
+            margin: auto; 
+            padding: 30px; 
+            background-color: #fff;
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+        .plan { 
+            padding: 15px; 
+            border: 2px solid #e0e0e0; 
+            margin-bottom: 15px; 
+            cursor: pointer; 
+            border-radius: 8px;
+            transition: all 0.2s ease-in-out;
+            text-align: left;
+        }
+        .plan:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+        .plan.selected { 
+            background-color: #e0f7fa; 
+            border-color: #00796b; 
+            box-shadow: 0 0 0 3px #00796b inset;
+        }
+        input[type="tel"] { 
+            width: 100%; 
+            padding: 12px; 
+            margin-top: 20px; 
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box; /* Ensures padding doesn't affect width */
+        }
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            margin-top: 20px; 
+            background-color: #00796b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #004d40;
+        }
+        #message { 
+            margin-top: 20px; 
+            color: green; 
+            font-weight: bold;
+        }
+        #error { 
+            margin-top: 20px; 
+            color: red; 
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Welcome to Our Wi-Fi Hotspot!</h2>
+        <p>Please select a plan and enter your phone number to get connected.</p>
+
+        <form id="paymentForm">
+            {% for plan in plans %}
+                <div class="plan" data-id="{{ plan.id }}" data-price="{{ plan.price }}">
+                    <strong>{{ plan.name }}</strong> - ${{ plan.price }} for {{ plan.duration_minutes }} minutes
+                </div>
+            {% endfor %}
+
+            <input type="tel" id="phoneNumber" name="phone_number" placeholder="Enter your MTN phone number" required>
+
+            <button type="submit">Pay and Connect</button>
+        </form>
+
+        <div id="message"></div>
+        <div id="error"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('paymentForm');
+            const plans = document.querySelectorAll('.plan');
+            const messageDiv = document.getElementById('message');
+            const errorDiv = document.getElementById('error');
+            let selectedPlanId = null;
+
+            // Add click event listeners to each plan div
+            plans.forEach(plan => {
+                plan.addEventListener('click', () => {
+                    // Remove 'selected' class from all plans
+                    plans.forEach(p => p.classList.remove('selected'));
+                    // Add 'selected' class to the clicked plan
+                    plan.classList.add('selected');
+                    selectedPlanId = plan.dataset.id;
+                });
+            });
+
+            // Handle the form submission
+            form.addEventListener('submit', function(e) {
+                e.preventDefault(); // Prevent the default form submission
+
+                messageDiv.textContent = '';
+                errorDiv.textContent = '';
+
+                // Validate that a plan is selected
+                if (!selectedPlanId) {
+                    errorDiv.textContent = 'Please select a plan first.';
+                    return;
+                }
+
+                const phoneNumber = document.getElementById('phoneNumber').value;
+                if (!phoneNumber) {
+                    errorDiv.textContent = 'Please enter your phone number.';
+                    return;
+                }
+
+                messageDiv.textContent = 'Processing payment request...';
+
+                // Get the CSRF token from the cookie
+                const csrftoken = getCookie('csrftoken');
+
+                // Make the AJAX call to the Django view
+                fetch('/initiate-payment/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: JSON.stringify({
+                        plan_id: selectedPlanId,
+                        phone_number: phoneNumber,
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Server error');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    messageDiv.textContent = data.message;
+                    // For a real-world app, you might start polling the server for the payment status here
+                })
+                .catch(error => {
+                    errorDiv.textContent = `An error occurred: ${error.message}. Please try again.`;
+                    console.error('Error:', error);
+                });
+            });
+
+            // A helper function to get the CSRF token from cookies
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.startsWith(name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+        });
+    </script>
+</body>
+</html>
