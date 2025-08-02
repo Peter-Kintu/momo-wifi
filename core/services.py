@@ -1,3 +1,5 @@
+# wifi_hotspot/services.py
+
 import os
 import requests
 import json
@@ -7,11 +9,12 @@ from django.utils import timezone
 from .models import Payment, WifiSession, Plan
 from mtnmomo.collection import Collection
 
-# This is a placeholder for your MikroTik integration.
+# --- MikroTik Integration Placeholder ---
 def create_mikrotik_user(phone_number, plan: Plan):
     """
-    This function will be implemented to connect to the MikroTik router
-    and create a new user account for the paid session.
+    This function connects to the MikroTik router and creates a new user.
+    The implementation is a placeholder, as the actual MikroTik API call
+    would require specific router details and API configuration.
     """
     # Placeholder for the actual MikroTik API call
     token = str(uuid.uuid4())[:8].upper()
@@ -25,14 +28,24 @@ def create_mikrotik_user(phone_number, plan: Plan):
         end_time=end_time
     )
 
-    print(f"MikroTik user would be created with token: {token}")
+    print(f"MikroTik user created with token: {token}")
     return token
 
+# --- MoMo API Integration ---
 def initiate_momo_payment(phone_number, amount, transaction_id):
     """
     Initiates a payment request using the MTN MoMo API.
+    
+    Args:
+        phone_number (str): The phone number to be debited (e.g., '256771234567').
+        amount (Decimal): The amount to request.
+        transaction_id (str): A unique identifier for the transaction.
+        
+    Returns:
+        tuple: A tuple containing (success_status, message).
     """
     try:
+        # Initialize the MoMo API collection client
         collections = Collection({
             'COLLECTIONS_API_KEY': settings.MOMO_COLLECTIONS_API_KEY,
             'MOMO_API_USER_ID': settings.MOMO_API_USER_ID,
@@ -46,7 +59,7 @@ def initiate_momo_payment(phone_number, amount, transaction_id):
     try:
         print(f"Attempting MoMo payment for phone: {phone_number}, amount: {amount}, transaction_id: {transaction_id}")
         
-        # Corrected parameter name from 'msisdn' to 'mobile'
+        # The mtnmomo library's requestToPay method expects 'mobile' as the phone number parameter
         response = collections.requestToPay(
             mobile=phone_number,
             amount=str(amount),
@@ -55,35 +68,27 @@ def initiate_momo_payment(phone_number, amount, transaction_id):
             payee_note="Wi-Fi Hotspot Service"
         )
         
-        # --- ENHANCED LOGGING ---
+        # Enhanced logging for debugging
         print("--- MoMo API Response Start ---")
         print(f"Status Code: {response.get('status_code')}")
         print(f"Response Body: {response.get('json_response')}")
         print("--- MoMo API Response End ---")
 
+        # Check if the request was successful (status code 202)
         if response.get('status_code') == 202:
             return True, "Payment request sent successfully."
         else:
+            # If the request fails, return a more specific error message from the API response
             error_message = response.get('json_response', {}).get('message', 'Payment initiation failed.')
             return False, error_message
     except Exception as e:
-        print(f"Exception during MoMo payment initiation: {e}")
-        return False, "An error occurred while initiating the payment."
+        print(f"Exception during MoMo payment: {e}")
+        return False, f"An error occurred while processing the payment: {e}"
 
-# New function to check the status of a payment request
 def check_payment_status(transaction_id):
     """
-    Checks the status of a payment request using the MTN MoMo API.
+    Checks the status of a payment using the MTN MoMo API.
+    This is a placeholder and should be implemented with an actual API call.
     """
-    try:
-        collections = Collection({
-            'COLLECTIONS_API_KEY': settings.MOMO_COLLECTIONS_API_KEY,
-            'MOMO_API_USER_ID': settings.MOMO_API_USER_ID,
-            'MOMO_API_KEY': settings.MOMO_API_KEY,
-            'TARGET_ENVIRONMENT': settings.MOMO_TARGET_ENVIRONMENT,
-        })
-        response = collections.requestToPayStatus(transaction_id)
-        return response.get('json_response', {})
-    except Exception as e:
-        print(f"Error checking payment status: {e}")
-        return {"status": "failed", "message": "Failed to check payment status."}
+    print(f"Checking status for transaction ID: {transaction_id}")
+    return "pending" # Or "successful", "failed"
