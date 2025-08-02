@@ -19,7 +19,10 @@ psycopg2-binary==2.9.10
 # Optional: Static file serving
 whitenoise==6.6.0
 
-requests==2.21.0
+
 mtnmomo==3.0.1
 
+requests>=2.25.0
 urllib3==1.26.16
+
+git+https://github.com/Peter-Kintu/momo-wifi.git#egg=mtnmomo
