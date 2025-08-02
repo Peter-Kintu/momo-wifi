@@ -9,6 +9,8 @@ djangorestframework==3.15.1
 
 # Environment variable support
 python-dotenv==1.0.1
+# Use decouple for environment variables
+decouple==3.8
 
 # MikroTik RouterOS API
 routeros-api==0.21.0
@@ -19,8 +21,9 @@ psycopg2-binary==2.9.10
 # Optional: Static file serving
 whitenoise==6.6.0
 
+# For the MoMo API integration
+git+https://github.com/Peter-Kintu/momo-wifi.git#egg=mtnmomo
 
+# HTTP requests library
 requests>=2.25.0
 urllib3==1.26.16
-
-git+https://github.com/Peter-Kintu/momo-wifi.git#egg=mtnmomo
