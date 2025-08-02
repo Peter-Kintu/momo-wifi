@@ -1,13 +1,16 @@
-from django.shortcuts import render, redirect
-from django.urls import reverse
-from django.http import HttpResponse, JsonResponse
+import uuid
+import json
+from django.shortcuts import render
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.utils import timezone
 from .models import Plan, Payment, WifiSession
-from .services import initiate_momo_payment, create_mikrotik_user
-import uuid
-import json
+
+# Corrected import: We only need to import initiate_momo_payment from services.
+# The create_mikrotik_user function is defined in this file.
+from .services import initiate_momo_payment
+
 
 # This is a placeholder for your MikroTik integration.
 def create_mikrotik_user(phone_number, plan):
@@ -32,17 +35,30 @@ def create_mikrotik_user(phone_number, plan):
 
 @csrf_exempt
 def hotspot_login_page(request):
+    """
+    Renders the main hotspot login page with available plans.
+    """
     plans = Plan.objects.all().order_by('price')
-    return render(request, 'core/hotspot_login.html', {'plans': plans})
+    return render(request, 'hotspot_login.html', {'plans': plans})
 
 
 @csrf_exempt
 def initiate_payment(request):
+    """
+    Handles the initiation of a payment request.
+    """
     print(">>> Received a request to initiate payment.")
     if request.method == 'POST':
-        # Retrieve data from the form
-        phone_number = request.POST.get('phone_number')
-        plan_id = request.POST.get('plan_id')
+        try:
+            # We expect a JSON payload from the frontend.
+            data = json.loads(request.body)
+            phone_number = data.get('phone_number')
+            plan_id = data.get('plan_id')
+            print(f">>> Request Data: phone_number={phone_number}, plan_id={plan_id}")
+
+        except json.JSONDecodeError:
+            print(">>> Error: Invalid JSON in request body.")
+            return JsonResponse({"error": "Invalid JSON payload."}, status=400)
 
         # Basic validation
         if not phone_number or not plan_id:
@@ -54,32 +70,39 @@ def initiate_payment(request):
             return JsonResponse({'error': 'Invalid plan selected.'}, status=404)
 
         # Create a new payment record in the database
-        payment = Payment.objects.create(
-            phone_number=phone_number,
-            plan=plan,
-            amount=plan.price,
-            transaction_id=str(uuid.uuid4()), # Create a unique transaction ID
-            status='pending'
-        )
-        print(f">>> Created pending payment record with ID: {payment.transaction_id}")
+        transaction_id = str(uuid.uuid4()) # Create a unique transaction ID
 
-        # Initiate payment with MTN MoMo
-        success, message = initiate_momo_payment(
-            phone_number=phone_number,
-            amount=plan.price,
-            transaction_id=payment.transaction_id
-        )
+        try:
+            with transaction.atomic():
+                payment = Payment.objects.create(
+                    phone_number=phone_number,
+                    plan=plan,
+                    amount=plan.price,
+                    transaction_id=transaction_id,
+                    status='pending'
+                )
+                print(f">>> Created pending payment record with ID: {payment.transaction_id}")
 
-        if success:
-            print(f">>> Payment initiated successfully for transaction ID: {payment.transaction_id}")
-            payment.status = 'sent' # Update status to 'sent'
-            payment.save()
-            return JsonResponse({'message': 'Payment request sent successfully. Please approve the payment on your phone.'})
-        else:
-            print(f">>> Failed to initiate payment: {message}")
-            payment.status = 'failed'
-            payment.save()
-            return JsonResponse({"error": message}, status=500)
+                # Initiate payment with MTN MoMo
+                success, message = initiate_momo_payment(
+                    phone_number=phone_number,
+                    amount=plan.price,
+                    transaction_id=payment.transaction_id
+                )
+
+                if success:
+                    print(f">>> Payment initiated successfully for transaction ID: {payment.transaction_id}")
+                    payment.status = 'sent' # Update status to 'sent'
+                    payment.save()
+                    return JsonResponse({'message': 'Payment request sent successfully. Please approve the payment on your phone.'})
+                else:
+                    print(f">>> Failed to initiate payment: {message}")
+                    payment.status = 'failed'
+                    payment.save()
+                    return JsonResponse({"error": message}, status=500)
+        except Exception as e:
+            print(f">>> An unexpected error occurred during payment initiation: {e}")
+            return JsonResponse({"error": "An internal server error occurred."}, status=500)
 
     print(">>> Invalid request method. Not a POST request.")
     return JsonResponse({"error": "Invalid request method. Only POST is allowed."}, status=405)
@@ -119,4 +142,3 @@ def payment_callback(request):
             return HttpResponse("Payment failed or was rejected.", status=200)
 
     return HttpResponse(status=405)
-
