@@ -10,6 +10,20 @@ import uuid
 import json
 from mtnmomo.collection import Collection
 
+# This import was causing the dependency error. We are now using 'python-dotenv'
+# which is loaded in settings.py. The decouple library is no longer needed in views.
+# from decouple import config
+
+# Note: The following two lines were added for testing in a previous iteration.
+# It is recommended to remove them for a clean production build,
+# but they are kept here for context if you were testing locally.
+# from core.utils.momo import initiate_momo_payment, check_payment_status
+# txn_id, response = initiate_momo_payment(Collection, "256789746493", 1000)
+# print(txn_id)
+# print(response)
+# status = check_payment_status(Collection, txn_id)
+# print(status)
+
 # This is a placeholder for your MikroTik integration.
 def create_mikrotik_user(phone_number, plan):
     """
@@ -33,73 +47,57 @@ def create_mikrotik_user(phone_number, plan):
 
 def hotspot_login_page(request):
     """
-    Renders the main hotspot login page.
+    Renders the main hotspot login page with available plans.
     """
-    print(">>> Rendering hotspot_login_page...")
     plans = Plan.objects.all()
     context = {
         'plans': plans
     }
     return render(request, 'core/hotspot_login.html', context)
 
+
 @csrf_exempt
 def initiate_payment(request):
     """
-    Handles the payment initiation request from the front-end.
+    Handles the payment initiation request from the hotspot login page.
     """
-    print(">>> initiate_payment view reached!")
     if request.method == 'POST':
-        print(">>> Request method is POST.")
         try:
             data = json.loads(request.body)
-            print(f">>> Received data: {data}")
-            plan_id = data.get('plan_id')
             phone_number = data.get('phone_number')
-
-            if not plan_id or not phone_number:
-                print(">>> Missing plan_id or phone_number.")
-                return JsonResponse({"error": "Plan ID and phone number are required."}, status=400)
-
-            plan = Plan.objects.get(id=plan_id)
-            print(f">>> Plan found: {plan.name}")
-            
-            # Generate a unique transaction ID
-            transaction_id = str(uuid.uuid4())
-
-            # Create a pending payment record
-            with transaction.atomic():
-                payment = Payment.objects.create(
-                    phone_number=phone_number,
-                    plan=plan,
-                    amount=plan.price,
-                    transaction_id=transaction_id,
-                    status='pending'
-                )
-                print(">>> Payment record created.")
-
-                # Call the payment service
-                success, message = initiate_momo_payment(phone_number, plan.price, transaction_id)
-            
-            if success:
-                print(">>> MoMo payment initiation successful.")
-                return JsonResponse({"message": "Payment request sent. Please approve the request on your phone.", "transaction_id": transaction_id}, status=202)
-            else:
-                # If MoMo initiation fails, mark the payment as failed
-                print(f">>> MoMo payment initiation failed: {message}")
-                payment.status = 'failed'
-                payment.save()
-                return JsonResponse({"error": message}, status=500)
-
+            plan_id = data.get('plan_id')
         except json.JSONDecodeError:
-            print(">>> Invalid JSON in request body.")
-            return JsonResponse({"error": "Invalid JSON in request body."}, status=400)
+            return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+        if not phone_number or not plan_id:
+            return JsonResponse({"error": "Phone number and plan are required."}, status=400)
+
+        try:
+            plan = Plan.objects.get(id=plan_id)
         except Plan.DoesNotExist:
-            print(">>> Invalid plan selected.")
             return JsonResponse({"error": "Invalid plan selected."}, status=404)
-        except Exception as e:
-            print(f">>> An unexpected error occurred: {e}")
-            return JsonResponse({"error": "An unexpected server error occurred."}, status=500)
-    
+
+        # Generate a unique transaction ID
+        transaction_id = str(uuid.uuid4())
+
+        # Ensure the payment is created within a transaction to handle potential race conditions
+        with transaction.atomic():
+            payment = Payment.objects.create(
+                phone_number=phone_number,
+                plan=plan,
+                amount=plan.price,
+                transaction_id=transaction_id,
+                status='pending'
+            )
+            success, message = initiate_momo_payment(phone_number, plan.price, transaction_id)
+
+        if success:
+            return JsonResponse({"message": "Payment request sent. Waiting for confirmation.", "transaction_id": transaction_id}, status=202)
+        else:
+            payment.status = 'failed'
+            payment.save()
+            return JsonResponse({"error": message}, status=500)
+
     print(">>> Invalid request method. Not a POST request.")
     return JsonResponse({"error": "Invalid request method. Only POST is allowed."}, status=405)
 
@@ -135,6 +133,6 @@ def payment_callback(request):
             token = create_mikrotik_user(payment.phone_number, payment.plan)
             return HttpResponse(f"Payment successful, user created with token: {token}", status=200)
 
-        return HttpResponse(f"Payment status is {payment_status}", status=200)
-    
+        return HttpResponse(f"Payment status: {payment_status}", status=200)
+
     return HttpResponse(status=405)
