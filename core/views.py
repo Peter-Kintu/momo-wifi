@@ -39,7 +39,7 @@ def hotspot_login_page(request):
     Renders the main hotspot login page with available plans.
     """
     plans = Plan.objects.all().order_by('price')
-    return render(request, 'hotspot_login.html', {'plans': plans})
+    return render(request, 'core/hotspot_login.html', {'plans': plans})
 
 
 @csrf_exempt
