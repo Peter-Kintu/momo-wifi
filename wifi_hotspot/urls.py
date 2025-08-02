@@ -15,16 +15,17 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 
-# Assuming you have a core/urls.py for the 'core' app, this is best practice.
-# If you don't, you can keep all the paths in this file as shown below.
-
-from core.views import hotspot_login_page, initiate_payment, payment_callback
+# The view function name `initiate_payment` was changed to `initiate_payment_view`
+# in a previous fix for clarity. This import statement reflects that change.
+from core.views import hotspot_login_page, initiate_payment_view, payment_callback
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', hotspot_login_page, name='hotspot_login_page'),
-    path('initiate-payment/', initiate_payment, name='initiate_payment'),
-    path('payment-callback/', payment_callback, name='payment_callback'),
+    # The URL path is updated to match the front-end request.
+    path('api/initiate-payment/', initiate_payment_view, name='initiate_payment'),
+    # The URL path for the payment callback is also updated for consistency.
+    path('api/payment-callback/', payment_callback, name='payment_callback'),
 ]
