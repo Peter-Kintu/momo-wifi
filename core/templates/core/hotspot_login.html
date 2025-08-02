@@ -3,189 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Hotspot</title>
+    <title>WiFi Hotspot Login</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { 
-            font-family: sans-serif; 
-            text-align: center; 
-            padding-top: 50px; 
-            background-color: #f0f2f5;
-            color: #333;
-        }
-        .container { 
-            max-width: 450px; 
-            margin: auto; 
-            padding: 30px; 
-            background-color: #fff;
-            border-radius: 12px; 
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-        h2 {
-            color: #00796b;
-            margin-bottom: 10px;
-        }
-        .plan { 
-            padding: 15px; 
-            border: 2px solid #e0e0e0; 
-            margin-bottom: 15px; 
-            cursor: pointer; 
-            border-radius: 8px;
-            transition: all 0.2s ease-in-out;
-            text-align: left;
-        }
-        .plan:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        }
-        .plan.selected { 
-            background-color: #e0f7fa; 
-            border-color: #00796b; 
-            box-shadow: 0 0 0 3px #00796b inset;
-        }
-        input[type="tel"] { 
-            width: 100%; 
-            padding: 12px; 
-            margin-top: 20px; 
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-sizing: border-box; /* Ensures padding doesn't affect width */
-        }
-        button { 
-            width: 100%; 
-            padding: 12px; 
-            margin-top: 20px; 
-            background-color: #00796b;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #004d40;
-        }
-        #message { 
-            margin-top: 20px; 
-            color: green; 
-            font-weight: bold;
-        }
-        #error { 
-            margin-top: 20px; 
-            color: red; 
-            font-weight: bold;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h2>Welcome to Our Wi-Fi Hotspot!</h2>
-        <p>Please select a plan and enter your phone number to get connected.</p>
+<body class="bg-gray-900 text-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-gray-800 p-8 md:p-10 rounded-3xl shadow-2xl w-full max-w-lg">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-600 mb-2">
+                WiFi Hotspot
+            </h1>
+            <p class="text-gray-400 text-lg">Select a plan and connect instantly!</p>
+        </div>
 
-        <form id="paymentForm">
-            {% for plan in plans %}
-                <div class="plan" data-id="{{ plan.id }}" data-price="{{ plan.price }}">
-                    <strong>{{ plan.name }}</strong> - ${{ plan.price }} for {{ plan.duration_minutes }} minutes
-                </div>
-            {% endfor %}
+        <!-- Plan Selection Form -->
+        <form id="payment-form" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Dynamically populated plan options will go here -->
+                {% for plan in plans %}
+                <label class="group relative block cursor-pointer">
+                    <input type="radio" name="plan_id" value="{{ plan.id }}" class="hidden peer" required>
+                    <div class="p-6 rounded-2xl border-2 border-gray-700 bg-gray-700 hover:border-blue-500 transition-all duration-300 peer-checked:border-blue-500 peer-checked:ring-4 peer-checked:ring-blue-500 peer-checked:ring-opacity-50">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-2xl font-bold text-blue-400">{{ plan.price|floatformat:0 }} UGX</span>
+                            <span class="text-sm text-gray-300 bg-gray-600 px-3 py-1 rounded-full">{{ plan.duration_minutes }} Mins</span>
+                        </div>
+                        <p class="text-lg font-semibold text-gray-200">{{ plan.name }}</p>
+                        <p class="text-sm text-gray-400 mt-1">{{ plan.description }}</p>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
 
-            <input type="tel" id="phoneNumber" name="phone_number" placeholder="Enter your MTN phone number" required>
+            <!-- Phone Number Input -->
+            <div>
+                <label for="phone-number" class="block text-sm font-medium text-gray-300 mb-2">Phone Number</label>
+                <input type="text" id="phone-number" name="phone_number" placeholder="e.g., 256771234567" required
+                       class="mt-1 block w-full px-4 py-3 bg-gray-700 border-2 border-gray-600 rounded-xl text-gray-100 focus:outline-none focus:border-blue-500 transition-all duration-300">
+            </div>
 
-            <button type="submit">Pay and Connect</button>
+            <!-- Submit Button -->
+            <button type="submit" id="submit-button"
+                    class="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white font-bold text-lg hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-300 transform active:scale-95">
+                Initiate Payment
+            </button>
         </form>
 
-        <div id="message"></div>
-        <div id="error"></div>
+        <!-- Message/Loading Box -->
+        <div id="message-box" class="mt-6 p-4 rounded-xl text-center font-medium transition-all duration-300 hidden">
+            <p id="message-text"></p>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('paymentForm');
-            const plans = document.querySelectorAll('.plan');
-            const messageDiv = document.getElementById('message');
-            const errorDiv = document.getElementById('error');
-            let selectedPlanId = null;
+            const form = document.getElementById('payment-form');
+            const submitButton = document.getElementById('submit-button');
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
 
-            // Add click event listeners to each plan div
-            plans.forEach(plan => {
-                plan.addEventListener('click', () => {
-                    // Remove 'selected' class from all plans
-                    plans.forEach(p => p.classList.remove('selected'));
-                    // Add 'selected' class to the clicked plan
-                    plan.classList.add('selected');
-                    selectedPlanId = plan.dataset.id;
-                });
-            });
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
 
-            // Handle the form submission
-            form.addEventListener('submit', function(e) {
-                e.preventDefault(); // Prevent the default form submission
+                // Show loading state
+                submitButton.textContent = 'Processing...';
+                submitButton.disabled = true;
+                submitButton.classList.add('opacity-75');
+                messageBox.classList.add('hidden');
 
-                messageDiv.textContent = '';
-                errorDiv.textContent = '';
+                const formData = new FormData(form);
+                const data = new URLSearchParams(formData);
 
-                // Validate that a plan is selected
-                if (!selectedPlanId) {
-                    errorDiv.textContent = 'Please select a plan first.';
-                    return;
-                }
+                try {
+                    const response = await fetch('/api/initiate-payment/', {
+                        method: 'POST',
+                        body: data,
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                    });
 
-                const phoneNumber = document.getElementById('phoneNumber').value;
-                if (!phoneNumber) {
-                    errorDiv.textContent = 'Please enter your phone number.';
-                    return;
-                }
+                    const result = await response.json();
 
-                messageDiv.textContent = 'Processing payment request...';
-
-                // Get the CSRF token from the cookie
-                const csrftoken = getCookie('csrftoken');
-
-                // Make the AJAX call to the Django view
-                fetch('/initiate-payment/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrftoken,
-                    },
-                    body: JSON.stringify({
-                        plan_id: selectedPlanId,
-                        phone_number: phoneNumber,
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(data => {
-                            throw new Error(data.error || 'Server error');
-                        });
+                    if (response.ok) {
+                        messageBox.classList.remove('hidden');
+                        messageBox.classList.add('bg-green-600', 'text-white');
+                        messageText.textContent = result.message;
+                    } else {
+                        messageBox.classList.remove('hidden');
+                        messageBox.classList.add('bg-red-600', 'text-white');
+                        messageText.textContent = result.error || 'An unknown error occurred.';
                     }
-                    return response.json();
-                })
-                .then(data => {
-                    messageDiv.textContent = data.message;
-                    // For a real-world app, you might start polling the server for the payment status here
-                })
-                .catch(error => {
-                    errorDiv.textContent = `An error occurred: ${error.message}. Please try again.`;
+                } catch (error) {
                     console.error('Error:', error);
-                });
-            });
-
-            // A helper function to get the CSRF token from cookies
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.startsWith(name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
+                    messageBox.classList.remove('hidden');
+                    messageBox.classList.add('bg-red-600', 'text-white');
+                    messageText.textContent = 'Failed to connect to the server.';
+                } finally {
+                    // Reset button and form state
+                    submitButton.textContent = 'Initiate Payment';
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('opacity-75');
                 }
-                return cookieValue;
-            }
+            });
         });
     </script>
 </body>
