@@ -33,7 +33,7 @@ def create_mikrotik_user(phone_number, plan):
 @csrf_exempt
 def hotspot_login_page(request):
     plans = Plan.objects.all().order_by('price')
-    return render(request, 'hotspot_login.html', {'plans': plans})
+    return render(request, 'core/hotspot_login.html', {'plans': plans})
 
 
 @csrf_exempt
