@@ -5,18 +5,23 @@ import uuid
 from requests.auth import HTTPBasicAuth
 from django.conf import settings
 
+# This file contains the logic for interacting with the MTN MoMo API.
+# It is designed to be independent and self-contained, using environment variables for configuration.
+
 def get_access_token():
     """
     Requests an access token from the MTN MoMo API using HTTPBasicAuth.
+    This is the first step in making any API call.
     """
-    url = f"https://sandbox.momodeveloper.mtn.com/collection/token/"
+    url = "https://sandbox.momodeveloper.mtn.com/collection/token/"
     
-    # Load credentials from environment variables
-    api_user = os.getenv("MOMO_COLLECTION_API_USER")
-    api_key = os.getenv("MOMO_COLLECTION_API_KEY")
-    subscription_key = os.getenv("MOMO_COLLECTION_SUBSCRIPTION_KEY")
+    # These are the credentials for basic authentication, specific to the sandbox environment.
+    api_user = os.getenv("MOMO_API_USER_ID")
+    api_key = os.getenv("MOMO_API_KEY")
     
-    # Check if credentials are set
+    # This is your API subscription key, which is a different header.
+    subscription_key = os.getenv("MOMO_COLLECTIONS_API_KEY")
+    
     if not all([api_user, api_key, subscription_key]):
         print("Error: Missing MTN MoMo API credentials in environment variables.")
         return None
@@ -26,15 +31,15 @@ def get_access_token():
     }
     
     try:
-        # Use HTTPBasicAuth for the username and password
+        # Use HTTPBasicAuth to send the credentials for the token request.
         response = requests.post(
             url,
             headers=headers,
             auth=HTTPBasicAuth(api_user, api_key)
         )
-        response.raise_for_status() # Raises an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
         
-        # The token is in the response body
+        # The access token is in the response body.
         return response.json().get("access_token")
     except requests.exceptions.RequestException as e:
         print(f"Error getting MoMo access token: {e}")
@@ -46,18 +51,18 @@ def request_to_pay(access_token, phone_number, amount, transaction_id):
     
     Args:
         access_token (str): The access token for the API.
-        phone_number (str): The user's phone number.
+        phone_number (str): The user's phone number (e.g., '0789746493').
         amount (str): The amount to be requested.
-        transaction_id (str): A unique transaction ID.
+        transaction_id (str): A unique transaction ID (UUID).
     
     Returns:
         tuple: (success, message)
     """
-    url = f"https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay"
+    url = "https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay"
     
-    subscription_key = os.getenv("MOMO_COLLECTION_SUBSCRIPTION_KEY")
+    subscription_key = os.getenv("MOMO_COLLECTIONS_API_KEY")
     callback_url = os.getenv("MOMO_CALLBACK_URL")
-    currency = os.getenv("MOMO_CURRENCY", "UGX") # Default to UGX if not set
+    currency = os.getenv("MOMO_CURRENCY", "UGX")
     
     if not all([subscription_key, callback_url]):
         print("Error: Missing subscription key or callback URL for payment request.")
@@ -72,14 +77,13 @@ def request_to_pay(access_token, phone_number, amount, transaction_id):
         "X-Callback-Url": callback_url,
     }
     
-    # The API expects the phone number in MSISDN format without the leading '0'
-    # The `lstrip('0')` is a good start, but we add a check to be more robust
-    formatted_phone_number = phone_number.lstrip('0')
-    if not formatted_phone_number.isdigit() or len(formatted_phone_number) < 8:
-        return False, "Invalid phone number format."
+    # Format the phone number to be `256` followed by the number without the leading `0`.
+    formatted_phone_number = '256' + phone_number.lstrip('0')
+    if not formatted_phone_number.isdigit() or len(formatted_phone_number) != 12:
+        return False, "Invalid phone number format. Expected format: '07xxxxxxxx'"
         
     payload = {
-        "amount": str(amount), # Amount must be a string
+        "amount": str(amount),
         "currency": currency,
         "externalId": transaction_id,
         "payer": {
@@ -94,7 +98,6 @@ def request_to_pay(access_token, phone_number, amount, transaction_id):
         response = requests.post(url, headers=headers, data=json.dumps(payload))
         response.raise_for_status()
         
-        # If the request is accepted, the status code is 202
         if response.status_code == 202:
             return True, "Payment request accepted"
         else:
@@ -109,7 +112,7 @@ def get_payment_status(access_token, transaction_id):
     """
     url = f"https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay/{transaction_id}"
     
-    subscription_key = os.getenv("MOMO_COLLECTION_SUBSCRIPTION_KEY")
+    subscription_key = os.getenv("MOMO_COLLECTIONS_API_KEY")
     if not subscription_key:
         print("Error: Missing subscription key for payment status check.")
         return False, "Missing configuration."
@@ -124,7 +127,6 @@ def get_payment_status(access_token, transaction_id):
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         
-        # The status is in the response body
         return True, response.json().get("status")
     except requests.exceptions.RequestException as e:
         print(f"Error in get_payment_status: {e}")
