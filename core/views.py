@@ -8,75 +8,92 @@ from .models import Plan, Payment, WifiSession
 from .services import initiate_momo_payment, create_mikrotik_user
 import uuid
 import json
+from mtnmomo.collection import Collection
+
+# This import was causing the dependency error. We are now using 'python-dotenv'
+# which is loaded in settings.py. The decouple library is no longer needed in views.
+# from decouple import config
+
+# Note: The following two lines were added for testing in a previous iteration.
+# It is recommended to remove them for a clean production build,
+# but they are kept here for context if you were testing locally.
+# from core.utils.momo import initiate_momo_payment, check_payment_status
+# txn_id, response = initiate_momo_payment(Collection, "256789746493", 1000)
+# print(txn_id)
+# print(response)
+# status = check_payment_status(Collection, txn_id)
+# print(status)
+
 
 # This is a placeholder for your MikroTik integration.
-def create_mikrotik_user(phone_number, plan):
-    """
-    This function will be implemented to connect to the MikroTik router
-    and create a new user account for the paid session.
-    """
-    # Placeholder for the actual MikroTik API call
-    token = str(uuid.uuid4())[:8].upper()
-    end_time = timezone.now() + timezone.timedelta(minutes=plan.duration_minutes)
+# This function is now imported from .services, as per our previous fix.
+# def create_mikrotik_user(phone_number, plan):
+#     """
+#     This function will be implemented to connect to the MikroTik router
+#     and create a new user account for the paid session.
+#     """
+#     # Placeholder for the actual MikroTik API call
+#     token = str(uuid.uuid4())[:8].upper()
+#     end_time = timezone.now() + timezone.timedelta(minutes=plan.duration_minutes)
 
-    # Save the session to your database
-    WifiSession.objects.create(
-        phone_number=phone_number,
-        plan=plan,
-        token=token,
-        end_time=end_time
-    )
+#     # Save the session to your database
+#     WifiSession.objects.create(
+#         phone_number=phone_number,
+#         plan=plan,
+#         token=token,
+#         end_time=end_time
+#     )
 
-    print(f"MikroTik user would be created with token: {token}")
-    return token
+#     print(f"MikroTik user would be created with token: {token}")
+#     return token
 
 @csrf_exempt
 def hotspot_login_page(request):
-    plans = Plan.objects.all().order_by('price')
-    return render(request, 'hotspot_login.html', {'plans': plans})
+    plans = Plan.objects.all()
+    # The template path has been changed to 'core/hotspot_login.html'
+    # to match your project's directory structure.
+    return render(request, 'core/hotspot_login.html', {'plans': plans})
 
 
 @csrf_exempt
-def initiate_payment(request):
-    print(">>> Received a request to initiate payment.")
+def initiate_payment_view(request):
+    """
+    Handles the payment initiation request from the hotspot login page.
+    """
     if request.method == 'POST':
-        # Retrieve data from the form
         phone_number = request.POST.get('phone_number')
         plan_id = request.POST.get('plan_id')
 
-        # Basic validation
         if not phone_number or not plan_id:
-            return JsonResponse({'error': 'Phone number and plan are required.'}, status=400)
+            return JsonResponse({"error": "Missing phone number or plan ID."}, status=400)
 
         try:
-            plan = Plan.objects.get(pk=plan_id)
+            plan = Plan.objects.get(id=plan_id)
         except Plan.DoesNotExist:
-            return JsonResponse({'error': 'Invalid plan selected.'}, status=404)
+            return JsonResponse({"error": "Invalid plan selected."}, status=400)
 
-        # Create a new payment record in the database
-        payment = Payment.objects.create(
-            phone_number=phone_number,
-            plan=plan,
-            amount=plan.price,
-            transaction_id=str(uuid.uuid4()), # Create a unique transaction ID
-            status='pending'
-        )
-        print(f">>> Created pending payment record with ID: {payment.transaction_id}")
+        # Create a unique transaction ID
+        transaction_id = str(uuid.uuid4())
 
-        # Initiate payment with MTN MoMo
-        success, message = initiate_momo_payment(
-            phone_number=phone_number,
-            amount=plan.price,
-            transaction_id=payment.transaction_id
-        )
+        # Save payment record to database with a 'pending' status
+        with transaction.atomic():
+            payment = Payment.objects.create(
+                phone_number=phone_number,
+                plan=plan,
+                amount=plan.price,
+                status='pending',
+                transaction_id=transaction_id
+            )
+
+            success, message = initiate_momo_payment(
+                phone_number,
+                plan.price,
+                transaction_id
+            )
 
         if success:
-            print(f">>> Payment initiated successfully for transaction ID: {payment.transaction_id}")
-            payment.status = 'sent' # Update status to 'sent'
-            payment.save()
-            return JsonResponse({'message': 'Payment request sent successfully. Please approve the payment on your phone.'})
+            return JsonResponse({"message": message, "transaction_id": transaction_id})
         else:
-            print(f">>> Failed to initiate payment: {message}")
             payment.status = 'failed'
             payment.save()
             return JsonResponse({"error": message}, status=500)
@@ -115,8 +132,7 @@ def payment_callback(request):
             # Create a user on the MikroTik router
             token = create_mikrotik_user(payment.phone_number, payment.plan)
             return HttpResponse(f"Payment successful, user created with token: {token}", status=200)
-        else:
-            return HttpResponse("Payment failed or was rejected.", status=200)
+
+        return HttpResponse(status=200)
 
     return HttpResponse(status=405)
-
