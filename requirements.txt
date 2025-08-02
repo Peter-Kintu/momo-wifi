@@ -1,26 +1,10 @@
-Core Django
 Django==5.0.6
-
-WSGI server for production
 gunicorn==21.2.0
-
-REST API support
 djangorestframework==3.15.1
-
-Environment variable support
 python-dotenv==1.0.1
-
-MikroTik RouterOS API
 routeros-api==0.21.0
-
-Optional: PostgreSQL support
 psycopg2-binary==2.9.10
-
-Optional: Static file serving
 whitenoise==6.6.0
-
 requests>=2.25.0
 urllib3==1.26.16
-
-For the MoMo API integration
 git+https://www.google.com/search?q=https://github.com/Peter-Kintu/momo-wifi.git%23egg%3Dmtnmomo
