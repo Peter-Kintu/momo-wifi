@@ -7,4 +7,3 @@ requests>=2.31.0
 urllib3>=2.2.1
 six>=1.16.0
 mtnmomo>=3.0.1
-git+https://github.com/Peter-Kintu/momo-wifi.git
