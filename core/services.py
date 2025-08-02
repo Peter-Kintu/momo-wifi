@@ -2,113 +2,71 @@ import os
 import requests
 import json
 import uuid
-import routeros_api
 from django.conf import settings
 from django.utils import timezone
 from .models import Payment, WifiSession, Plan
-from mtnmomo.collection import Collection
+from .mtnmomo_api import get_access_token, request_to_pay, get_payment_status
 
 # This is a placeholder for your MikroTik integration.
 def create_mikrotik_user(phone_number, plan: Plan):
     """
-    This function connects to the MikroTik router and creates a new user
-    account for the paid session.
+    This function will be implemented to connect to the MikroTik router
+    and create a new user account for the paid session.
     """
-    try:
-        api = routeros_api.RouterOsApiPool(
-            host=settings.MIKROTIK_HOST,
-            username=settings.MIKROTIK_USER,
-            password=settings.MIKROTIK_PASSWORD,
-            port=8728,
-            use_ssl=False,
-            # Uncomment the line below if you have SSL configured and know the cert path
-            # ssl_verify=os.getenv('MIKROTIK_CERT_PATH', False)
-        )
-        api.get_api().get_resource('/ip/hotspot/user').add(
-            name=phone_number,
-            password=str(uuid.uuid4())[:8],  # A simple, random password
-            profile=plan.mikrotik_profile_name,
-            limit_uptime=f"{plan.duration_minutes}m"
-        )
-        api.disconnect()
+    # Placeholder for the actual MikroTik API call
+    token = str(uuid.uuid4())[:8].upper()
+    end_time = timezone.now() + timezone.timedelta(minutes=plan.duration_minutes)
 
-        token = str(uuid.uuid4())[:8].upper()
-        end_time = timezone.now() + timezone.timedelta(minutes=plan.duration_minutes)
+    # Save the session to your database
+    WifiSession.objects.create(
+        phone_number=phone_number,
+        plan=plan,
+        token=token,
+        end_time=end_time
+    )
 
-        # Save the session to your database
-        WifiSession.objects.create(
-            phone_number=phone_number,
-            plan=plan,
-            token=token,
-            end_time=end_time
-        )
-        print(f"MikroTik user successfully created for {phone_number} with token: {token}")
-        return token
-    except Exception as e:
-        print(f"Failed to create MikroTik user: {e}")
-        return None
+    print(f"MikroTik user would be created with token: {token}")
+    return token
 
 def initiate_momo_payment(phone_number, amount, transaction_id):
     """
     Initiates a payment request using the MTN MoMo API.
     """
     try:
-        # Initialize the MoMo collections object with settings from the .env file
-        collections = Collection({
-            'COLLECTIONS_API_KEY': settings.MOMO_COLLECTIONS_API_KEY,
-            'MOMO_API_USER_ID': settings.MOMO_API_USER_ID,
-            'MOMO_API_KEY': settings.MOMO_API_KEY,
-            'TARGET_ENVIRONMENT': settings.MOMO_TARGET_ENVIRONMENT,
-        })
-    except Exception as e:
-        print(f"Error initializing MoMo collections: {e}")
-        return False, "Failed to initialize payment gateway. Please check your API credentials."
-
-    try:
-        print(f"Attempting MoMo payment for phone: {phone_number}, amount: {amount}, transaction_id: {transaction_id}")
-
-        # The mtnmomo library's requestToPay method
-        response = collections.requestToPay(
-            mobile=phone_number,
-            amount=str(amount),
-            external_id=transaction_id,
-            payer_message="Payment for Wi-Fi hotspot",
-            payee_note="Wi-Fi Hotspot Service"
-        )
-
-        # --- ENHANCED LOGGING ---
-        print("--- MoMo API Response Start ---")
-        print(f"Status Code: {response.get('status_code')}")
-        print(f"Response Body: {response.get('json_response')}")
-        print("--- MoMo API Response End ---")
-
-        if response.get('status_code') == 202:
+        # Get an access token for the API call
+        access_token = get_access_token()
+        if not access_token:
+            return False, "Failed to get access token for payment."
+            
+        # Use the custom request_to_pay function
+        success, message = request_to_pay(access_token, phone_number, str(amount), transaction_id)
+        
+        if success:
             return True, "Payment request sent successfully."
         else:
-            error_message = response.get('json_response', {}).get('message', 'Payment initiation failed.')
-            return False, error_message
-    except Exception as e:
-        print(f"Exception during MoMo payment initiation: {e}")
-        return False, f"An error occurred while initiating the payment: {e}"
+            return False, message
 
-def check_payment_status(transaction_id):
+    except Exception as e:
+        print(f"Error in initiate_momo_payment: {e}")
+        return False, "An unexpected error occurred while initiating payment."
+
+def check_momo_payment_status(transaction_id):
     """
-    Checks the status of a payment using the MTN MoMo API.
+    Checks the status of a payment.
     """
     try:
-        collections = Collection({
-            'COLLECTIONS_API_KEY': settings.MOMO_COLLECTIONS_API_KEY,
-            'MOMO_API_USER_ID': settings.MOMO_API_USER_ID,
-            'MOMO_API_KEY': settings.MOMO_API_KEY,
-            'TARGET_ENVIRONMENT': settings.MOMO_TARGET_ENVIRONMENT,
-        })
+        access_token = get_access_token()
+        if not access_token:
+            return False, "Failed to get access token to check payment status."
+            
+        # Use the custom get_payment_status function
+        success, status = get_payment_status(access_token, transaction_id)
+        
+        if success:
+            return True, status
+        else:
+            return False, status
+            
     except Exception as e:
-        print(f"Error initializing MoMo collections for status check: {e}")
-        return None
-
-    try:
-        response = collections.getTransactionStatus(transaction_id)
-        return response.get('json_response', {}).get('status')
-    except Exception as e:
-        print(f"Exception during MoMo payment status check: {e}")
-        return None
+        print(f"Error in check_momo_payment_status: {e}")
+        return False, "An unexpected error occurred while checking payment status."
