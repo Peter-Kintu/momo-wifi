@@ -20,6 +20,7 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -29,12 +30,12 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-developmen
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-# Explicitly set allowed hosts for development.
-# In production, this should be set to your domain name.
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+# Explicitly set allowed hosts for development and production.
+# This now reads from an environment variable for deployment.
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -43,7 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'core',  # Your application for handling hotspot logic
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -61,7 +62,7 @@ ROOT_URLCONF = 'wifi_hotspot.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'core' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -79,7 +80,6 @@ WSGI_APPLICATION = 'wifi_hotspot.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -87,10 +87,8 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -106,41 +104,30 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-# --- Custom App Settings ---
 # MTN MoMo API settings
-# These are read from the .env file.
 MOMO_CLIENT_ID = os.getenv('MOMO_CLIENT_ID')
 MOMO_COLLECTIONS_API_KEY = os.getenv('MOMO_COLLECTIONS_API_KEY')
 MOMO_API_USER_ID = os.getenv('MOMO_API_USER_ID')
 MOMO_API_KEY = os.getenv('MOMO_API_KEY')
-MOMO_TARGET_ENVIRONMENT = os.getenv('MOMO_TARGET_ENVIRONMENT', 'sandbox')
+MOMO_TARGET_ENVIRONMENT = os.getenv('MOMO_TARGET_ENVIRONMENT')
 MOMO_CALLBACK_URL = os.getenv('MOMO_CALLBACK_URL')
 
-# MikroTik Router API settings
-# These are used to connect to your router to manage user sessions.
+# MikroTik API settings
 MIKROTIK_HOST = os.getenv('MIKROTIK_HOST')
 MIKROTIK_USER = os.getenv('MIKROTIK_USER')
 MIKROTIK_PASSWORD = os.getenv('MIKROTIK_PASSWORD')
