@@ -20,8 +20,6 @@ psycopg2-binary==2.9.10
 whitenoise==6.6.0
 
 
-mtnmomo==3.0.1
-
 requests>=2.25.0
 urllib3==1.26.16
 
