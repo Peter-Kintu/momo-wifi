@@ -19,6 +19,5 @@ psycopg2-binary==2.9.10
 # Optional: Static file serving
 whitenoise==6.6.0
 
-requests==2.31.0
-
+requests==2.21.0
 mtnmomo==3.0.1
