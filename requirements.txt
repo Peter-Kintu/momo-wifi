@@ -10,11 +10,11 @@ djangorestframework==3.15.1
 # Environment variable support
 python-dotenv==1.0.1
 
-# MikroTik API (RouterOS integration)
-routeros-api==0.5.6
+# MikroTik RouterOS API
+routeros-api==0.21.0
 
-# Optional: PostgreSQL support (if you switch from SQLite)
+# Optional: PostgreSQL support
 psycopg2-binary==2.9.10
 
-# Optional: Static file serving in production
+# Optional: Static file serving
 whitenoise==6.6.0
