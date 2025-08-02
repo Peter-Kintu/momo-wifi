@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'hotspot', # Assuming your Django application is named 'hotspot'
+    'core', # Assuming your Django application is named 'core'
 ]
 
 MIDDLEWARE = [
