@@ -6,9 +6,11 @@ import routeros_api
 from django.conf import settings
 from django.utils import timezone
 from .models import Payment, WifiSession, Plan
-from mtnmomo.collection import Collection
+import logging
 
-# This is a placeholder for your MikroTik integration.
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+
 def create_mikrotik_user(phone_number, plan: Plan):
     """
     This function connects to the MikroTik router and creates a new user
@@ -20,13 +22,11 @@ def create_mikrotik_user(phone_number, plan: Plan):
             username=settings.MIKROTIK_USER,
             password=settings.MIKROTIK_PASSWORD,
             port=8728,
-            use_ssl=False,
-            # Uncomment the line below if you have SSL configured and know the cert path
-            # ssl_verify=os.getenv('MIKROTIK_CERT_PATH', False)
+            use_ssl=False
         )
         api.get_api().get_resource('/ip/hotspot/user').add(
             name=phone_number,
-            password=str(uuid.uuid4())[:8],  # A simple, random password
+            password=str(uuid.uuid4())[:8],
             profile=plan.mikrotik_profile_name,
             limit_uptime=f"{plan.duration_minutes}m"
         )
@@ -42,73 +42,101 @@ def create_mikrotik_user(phone_number, plan: Plan):
             token=token,
             end_time=end_time
         )
-        print(f"MikroTik user successfully created for {phone_number} with token: {token}")
+        logger.info(f"MikroTik user successfully created for {phone_number} with token: {token}")
         return token
     except Exception as e:
-        print(f"Failed to create MikroTik user: {e}")
+        logger.error(f"Failed to create MikroTik user: {e}", exc_info=True)
+        return None
+
+def get_momo_access_token():
+    """
+    Retrieves an access token for the MoMo API.
+    """
+    headers = {
+        'Ocp-Apim-Subscription-Key': settings.MOMO_COLLECTIONS_API_KEY,
+        'Authorization': f'Basic {settings.MOMO_CLIENT_ID}',
+    }
+    
+    url = f"https://{settings.MOMO_TARGET_ENVIRONMENT}.mtn.com/oauth2/token"
+    data = {'grant_type': 'client_credentials'}
+
+    try:
+        response = requests.post(url, headers=headers, data=data)
+        response.raise_for_status()
+        return response.json().get('access_token')
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error getting MoMo access token: {e}", exc_info=True)
         return None
 
 def initiate_momo_payment(phone_number, amount, transaction_id):
     """
-    Initiates a payment request using the MTN MoMo API.
+    Initiates a payment request using direct HTTP calls to the MTN MoMo API.
     """
+    access_token = get_momo_access_token()
+    if not access_token:
+        return False, "Failed to get MoMo access token."
+
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'X-Reference-Id': transaction_id,
+        'X-Target-Environment': settings.MOMO_TARGET_ENVIRONMENT,
+        'Content-Type': 'application/json',
+        'Ocp-Apim-Subscription-Key': settings.MOMO_COLLECTIONS_API_KEY,
+    }
+
+    payload = {
+        "amount": str(amount),
+        "currency": "EUR",  # Adjust currency if needed
+        "externalId": transaction_id,
+        "payer": {
+            "partyIdType": "MSISDN",
+            "partyId": phone_number
+        },
+        "payerMessage": "Payment for Wi-Fi hotspot",
+        "payeeNote": "Wi-Fi Hotspot Service"
+    }
+
+    url = f"https://{settings.MOMO_TARGET_ENVIRONMENT}.mtn.com/collection/v1_0/requesttopay"
+    
     try:
-        # Initialize the MoMo collections object with settings from the .env file
-        collections = Collection({
-            'COLLECTIONS_API_KEY': settings.MOMO_COLLECTIONS_API_KEY,
-            'MOMO_API_USER_ID': settings.MOMO_API_USER_ID,
-            'MOMO_API_KEY': settings.MOMO_API_KEY,
-            'TARGET_ENVIRONMENT': settings.MOMO_TARGET_ENVIRONMENT,
-        })
-    except Exception as e:
-        print(f"Error initializing MoMo collections: {e}")
-        return False, "Failed to initialize payment gateway. Please check your API credentials."
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        logger.info("--- MoMo API Response Start ---")
+        logger.info(f"Status Code: {response.status_code}")
+        logger.info(f"Response Body: {response.text}")
+        logger.info("--- MoMo API Response End ---")
 
-    try:
-        print(f"Attempting MoMo payment for phone: {phone_number}, amount: {amount}, transaction_id: {transaction_id}")
-
-        # The mtnmomo library's requestToPay method
-        response = collections.requestToPay(
-            mobile=phone_number,
-            amount=str(amount),
-            external_id=transaction_id,
-            payer_message="Payment for Wi-Fi hotspot",
-            payee_note="Wi-Fi Hotspot Service"
-        )
-
-        # --- ENHANCED LOGGING ---
-        print("--- MoMo API Response Start ---")
-        print(f"Status Code: {response.get('status_code')}")
-        print(f"Response Body: {response.get('json_response')}")
-        print("--- MoMo API Response End ---")
-
-        if response.get('status_code') == 202:
+        if response.status_code == 202:
             return True, "Payment request sent successfully."
         else:
-            error_message = response.get('json_response', {}).get('message', 'Payment initiation failed.')
+            try:
+                error_message = response.json().get('message', 'Payment initiation failed.')
+            except json.JSONDecodeError:
+                error_message = f"Payment initiation failed with status code {response.status_code}."
             return False, error_message
-    except Exception as e:
-        print(f"Exception during MoMo payment initiation: {e}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Exception during MoMo payment initiation: {e}", exc_info=True)
         return False, f"An error occurred while initiating the payment: {e}"
 
 def check_payment_status(transaction_id):
     """
     Checks the status of a payment using the MTN MoMo API.
     """
-    try:
-        collections = Collection({
-            'COLLECTIONS_API_KEY': settings.MOMO_COLLECTIONS_API_KEY,
-            'MOMO_API_USER_ID': settings.MOMO_API_USER_ID,
-            'MOMO_API_KEY': settings.MOMO_API_KEY,
-            'TARGET_ENVIRONMENT': settings.MOMO_TARGET_ENVIRONMENT,
-        })
-    except Exception as e:
-        print(f"Error initializing MoMo collections for status check: {e}")
+    access_token = get_momo_access_token()
+    if not access_token:
         return None
 
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'X-Target-Environment': settings.MOMO_TARGET_ENVIRONMENT,
+        'Ocp-Apim-Subscription-Key': settings.MOMO_COLLECTIONS_API_KEY,
+    }
+    
+    url = f"https://{settings.MOMO_TARGET_ENVIRONMENT}.mtn.com/collection/v1_0/requesttopay/{transaction_id}"
+    
     try:
-        response = collections.getTransactionStatus(transaction_id)
-        return response.get('json_response', {}).get('status')
-    except Exception as e:
-        print(f"Exception during MoMo payment status check: {e}")
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json().get('status')
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Exception during MoMo payment status check: {e}", exc_info=True)
         return None
