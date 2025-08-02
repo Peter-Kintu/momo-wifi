@@ -3,5 +3,6 @@ gunicorn==21.2.0
 djangorestframework==3.15.1
 python-dotenv==1.0.1
 routeros-api==0.21.0
-requests>=2.25.0
-urllib3==1.26.16
+psycopg2-binary==2.9.10
+whitenoise==6.6.0
+mtnmomo>=3.0.1
