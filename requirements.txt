@@ -1,0 +1,20 @@
+# Core Django
+Django==5.0.6
+
+# WSGI server for production
+gunicorn==21.2.0
+
+# REST API support
+djangorestframework==3.15.1
+
+# Environment variable support
+python-dotenv==1.0.1
+
+# MikroTik API (RouterOS integration)
+routeros-api==0.5.6
+
+# Optional: PostgreSQL support (if you switch from SQLite)
+psycopg2-binary==2.9.10
+
+# Optional: Static file serving in production
+whitenoise==6.6.0
