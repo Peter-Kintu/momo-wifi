@@ -3,170 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wi-Fi Hotspot</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Your Hotspot</title>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+        body { 
+            font-family: 'Inter', sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
-        .plan-card:hover {
-            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            transform: translateY(-5px);
+        .container { 
+            max-width: 450px; 
+            margin: auto; 
+            padding: 30px; 
+            background-color: #fff;
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
         }
-        .plan-card.selected {
-            border-color: #2563eb;
-            background-color: #eff6ff;
-            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        h2 {
+            color: #00796b;
+            margin-bottom: 10px;
         }
-        .loader {
-            border-top-color: #fff;
-            -webkit-animation: spinner 1.5s linear infinite;
-            animation: spinner 1.5s linear infinite;
+        .plan { 
+            padding: 15px; 
+            border: 2px solid #e0e0e0; 
+            margin-bottom: 15px; 
+            cursor: pointer; 
+            border-radius: 8px;
+            transition: all 0.2s ease-in-out;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        @-webkit-keyframes spinner {
-            0% { -webkit-transform: rotate(0deg); }
-            100% { -webkit-transform: rotate(360deg); }
+        .plan:hover {
+            border-color: #00796b;
+            box-shadow: 0 0 8px rgba(0, 121, 107, 0.2);
         }
-        @keyframes spinner {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .plan.selected {
+            background-color: #e0f2f1;
+            border-color: #00796b;
+        }
+        .plan-details {
+            display: flex;
+            flex-direction: column;
+        }
+        .plan-price {
+            font-weight: bold;
+            color: #004d40;
+        }
+        input[type="tel"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #00796b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #004d40;
+        }
+        .message, .error {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .message {
+            background-color: #e0f2f1;
+            color: #00796b;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
         }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-lg mx-4">
-        <div class="text-center">
-            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Welcome!</h1>
-            <p class="text-gray-600 mb-6">Choose a plan to get connected.</p>
-        </div>
+<body>
+    <div class="container">
+        <h2>Select a WiFi Plan</h2>
+        <form id="payment-form" action="/api/initiate-payment/" method="POST">
+            {% csrf_token %}
 
-        <!-- Hidden form for CSRF token and data handling -->
-        <form id="payment-form" class="space-y-6">
-            <div id="plans-container" class="space-y-4">
-                {% for plan in plans %}
-                <div class="plan-card p-5 border-2 border-gray-200 rounded-xl cursor-pointer transition-all duration-200 ease-in-out" data-plan-id="{{ plan.id }}">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <h3 class="font-bold text-gray-800 text-lg">{{ plan.name }}</h3>
-                            <p class="text-sm text-gray-500">{{ plan.duration_minutes }} minutes</p>
-                        </div>
-                        <span class="font-bold text-2xl text-blue-600">UGX {{ plan.price }}</span>
-                    </div>
+            <!-- Plans are dynamically rendered by the Django view -->
+            {% for plan in plans %}
+            <div class="plan" data-plan-id="{{ plan.id }}">
+                <div class="plan-details">
+                    <div>{{ plan.name }}</div>
+                    <small>{{ plan.duration_minutes }} minutes</small>
                 </div>
-                {% endfor %}
+                <div class="plan-price">{{ plan.price }}</div>
             </div>
+            {% endfor %}
 
-            <div>
-                <label for="phone-number" class="block text-sm font-medium text-gray-700">Phone Number (MTN MoMo)</label>
-                <input type="tel" id="phone-number" name="phone-number" class="mt-1 block w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-md focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50" placeholder="e.g., 256771234567" required>
-            </div>
+            <input type="hidden" name="plan_id" id="plan_id">
+
+            <input type="tel" name="phone_number" id="phone_number" placeholder="Phone Number (e.g., 078xxxxxxxx)" required pattern="^07[0-9]{8}$">
             
-            <button type="submit" id="pay-button" class="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ease-in-out">
-                <span id="button-text">Pay Now</span>
-                <div id="button-spinner" class="hidden h-5 w-5 border-4 border-gray-300 rounded-full loader"></div>
-            </button>
+            <button type="submit">Pay Now</button>
         </form>
-
-        <div id="message" class="mt-4 p-4 text-green-700 bg-green-100 rounded-lg hidden" role="alert"></div>
-        <div id="error" class="mt-4 p-4 text-red-700 bg-red-100 rounded-lg hidden" role="alert"></div>
+        <div id="message" class="message" style="display:none;"></div>
+        <div id="error" class="error" style="display:none;"></div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const plansContainer = document.getElementById('plans-container');
-            const planCards = document.querySelectorAll('.plan-card');
-            const phoneInput = document.getElementById('phone-number');
-            const paymentForm = document.getElementById('payment-form');
-            const payButton = document.getElementById('pay-button');
-            const buttonText = document.getElementById('button-text');
-            const buttonSpinner = document.getElementById('button-spinner');
+            const plans = document.querySelectorAll('.plan');
+            const form = document.getElementById('payment-form');
+            const planIdInput = document.getElementById('plan_id');
+            const phoneNumberInput = document.getElementById('phone_number');
             const messageDiv = document.getElementById('message');
             const errorDiv = document.getElementById('error');
 
-            let selectedPlanId = null;
-
-            // Handle plan selection
-            plansContainer.addEventListener('click', function(event) {
-                const card = event.target.closest('.plan-card');
-                if (card) {
-                    planCards.forEach(c => c.classList.remove('selected'));
-                    card.classList.add('selected');
-                    selectedPlanId = card.dataset.planId;
-                    errorDiv.classList.add('hidden');
-                }
+            plans.forEach(plan => {
+                plan.addEventListener('click', () => {
+                    plans.forEach(p => p.classList.remove('selected'));
+                    plan.classList.add('selected');
+                    planIdInput.value = plan.dataset.planId;
+                });
             });
 
-            // Handle form submission
-            paymentForm.addEventListener('submit', function(event) {
+            form.addEventListener('submit', function(event) {
                 event.preventDefault();
-                messageDiv.classList.add('hidden');
-                errorDiv.classList.add('hidden');
+                messageDiv.style.display = 'none';
+                errorDiv.style.display = 'none';
 
-                if (!selectedPlanId) {
+                if (!planIdInput.value) {
                     errorDiv.textContent = 'Please select a plan.';
-                    errorDiv.classList.remove('hidden');
+                    errorDiv.style.display = 'block';
                     return;
                 }
 
-                const phoneNumber = phoneInput.value.trim();
-                if (!phoneNumber) {
-                    errorDiv.textContent = 'Please enter your phone number.';
-                    errorDiv.classList.remove('hidden');
+                // Ensure phone number is in the correct format before submitting
+                let phoneNumber = phoneNumberInput.value.trim();
+                if (!phoneNumber.startsWith('07') || phoneNumber.length !== 10) {
+                    errorDiv.textContent = 'Please enter a valid phone number starting with 07 and with 10 digits.';
+                    errorDiv.style.display = 'block';
                     return;
                 }
+
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
                 
-                // Show loading state
-                payButton.disabled = true;
-                buttonText.classList.add('hidden');
-                buttonSpinner.classList.remove('hidden');
-
-                // Prepare data payload
-                const data = {
-                    phone_number: phoneNumber,
-                    plan_id: selectedPlanId
-                };
-
-                // Fetch options
-                const requestOptions = {
+                fetch(form.action, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCookie('csrftoken')
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(data)
-                };
-
-                // The Django URL is hardcoded here to prevent a server-side template rendering issue.
-                fetch('/api/initiate-payment/', requestOptions)
-                    .then(response => {
+                })
+                .then(response => {
+                    if (!response.ok) {
                         return response.json().then(data => {
-                            if (!response.ok) {
-                                throw new Error(data.error || 'Server error occurred.');
-                            }
-                            return data;
+                            throw new Error(data.error || 'Server error');
                         });
-                    })
-                    .then(data => {
-                        messageDiv.textContent = data.message;
-                        messageDiv.classList.remove('hidden');
-                        console.log('Payment initiated successfully:', data);
-                    })
-                    .catch(error => {
-                        errorDiv.textContent = `An error occurred: ${error.message}. Please try again.`;
-                        errorDiv.classList.remove('hidden');
-                        console.error('Error:', error);
-                    })
-                    .finally(() => {
-                        // Reset loading state
-                        payButton.disabled = false;
-                        buttonText.classList.remove('hidden');
-                        buttonSpinner.classList.add('hidden');
-                    });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    messageDiv.textContent = data.message;
+                    messageDiv.style.display = 'block';
+                    // For a real-world app, you might start polling the server for the payment status here
+                })
+                .catch(error => {
+                    errorDiv.textContent = `An error occurred: ${error.message}. Please try again.`;
+                    errorDiv.style.display = 'block';
+                    console.error('Error:', error);
+                });
             });
 
             // A helper function to get the CSRF token from cookies

@@ -51,7 +51,7 @@ def request_to_pay(access_token, phone_number, amount, transaction_id):
     
     Args:
         access_token (str): The access token for the API.
-        phone_number (str): The user's phone number (e.g., '0789746493').
+        phone_number (str): The user's phone number (e.g., '0789746493' or '256789746493').
         amount (str): The amount to be requested.
         transaction_id (str): A unique transaction ID (UUID).
     
@@ -77,10 +77,20 @@ def request_to_pay(access_token, phone_number, amount, transaction_id):
         "X-Callback-Url": callback_url,
     }
     
-    # Format the phone number to be `256` followed by the number without the leading `0`.
-    formatted_phone_number = '256' + phone_number.lstrip('0')
+    # Normalize the phone number format
+    formatted_phone_number = phone_number.strip()
+    if formatted_phone_number.startswith('07'):
+        # If it starts with '07', remove the '0' and prepend '256'
+        formatted_phone_number = '256' + formatted_phone_number[1:]
+    elif formatted_phone_number.startswith('256'):
+        # If it already starts with '256', use it as is
+        pass
+    else:
+        # Invalid format
+        return False, "Invalid phone number format. Expected format: '07xxxxxxxx' or '2567xxxxxxxx'."
+        
     if not formatted_phone_number.isdigit() or len(formatted_phone_number) != 12:
-        return False, "Invalid phone number format. Expected format: '07xxxxxxxx'"
+        return False, "Invalid phone number format. The number must be 12 digits long."
         
     payload = {
         "amount": str(amount),
