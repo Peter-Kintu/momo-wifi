@@ -1,137 +1,132 @@
-import os
 import requests
-import base64
-import uuid
+import json
 from django.conf import settings
-
-# This file contains the low-level functions for interacting with the MTN MoMo API directly
-# without relying on the third-party 'mtnmomo' library.
 
 def get_access_token():
     """
     Retrieves an access token from the MTN MoMo API.
-    
-    Returns:
-        str: The access token string if successful, otherwise None.
     """
     try:
         api_user_id = settings.MOMO_API_USER_ID
         api_key = settings.MOMO_API_KEY
-        
-        # Base64 encode the API user ID and API key
-        auth_string = f"{api_user_id}:{api_key}"
-        encoded_auth = base64.b64encode(auth_string.encode()).decode()
-        
-        # API endpoint for token
-        token_url = f"https://{settings.MOMO_TARGET_ENVIRONMENT}.mtn.com/collection/token/"
-        
-        headers = {
-            "Authorization": f"Basic {encoded_auth}",
-            "Ocp-Apim-Subscription-Key": settings.MOMO_COLLECTIONS_API_KEY
-        }
+        target_env = settings.MOMO_TARGET_ENVIRONMENT
 
-        print(">>> Attempting to get MoMo access token...")
-        response = requests.post(token_url, headers=headers)
+        # Check if environment variables are set
+        if not all([api_user_id, api_key, target_env]):
+            print("Error: Missing MTN MoMo API credentials in settings.")
+            return None
         
-        response.raise_for_status()  # Raise an exception for bad status codes
-        
-        token = response.json().get('access_token')
-        print(">>> MoMo access token retrieved successfully.")
-        return token
-        
+        # NOTE: Using a hardcoded URL for demonstration. In a real-world scenario,
+        # this should be configurable via settings.
+        url = f"https://{target_env}.mtn.com/collection/token/"
+        headers = {
+            'Content-Type': 'application/json',
+            'Ocp-Apim-Subscription-Key': api_key
+        }
+        auth = (api_user_id, api_key)
+
+        print("Attempting to get MoMo access token...")
+        response = requests.post(url, headers=headers, auth=auth)
+        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+
+        access_token_data = response.json()
+        print("MoMo access token retrieved successfully.")
+        return access_token_data.get('access_token')
+
+    except requests.exceptions.ConnectionError as e:
+        print(f"ConnectionError getting MoMo access token: {e}")
+        return None
     except requests.exceptions.RequestException as e:
         print(f"Error getting MoMo access token: {e}")
         return None
+    except Exception as e:
+        print(f"An unexpected error occurred while getting access token: {e}")
+        return None
 
-def request_to_pay(access_token, phone_number, amount, external_id):
+def request_to_pay(access_token, mobile, amount, external_id):
     """
-    Initiates a payment request using the MTN MoMo API.
-    
-    Args:
-        access_token (str): The valid access token.
-        phone_number (str): The mobile number of the payer.
-        amount (str): The amount to request.
-        external_id (str): A unique identifier for the transaction.
-        
-    Returns:
-        tuple: (success, message)
+    Sends a request-to-pay to the MTN MoMo API.
     """
-    if not access_token:
-        return False, "Failed to get access token."
-
     try:
-        request_to_pay_url = f"https://{settings.MOMO_TARGET_ENVIRONMENT}.mtn.com/collection/v1_0/requesttopay"
-        
-        # Generate a unique reference for the transaction
-        transaction_ref = str(uuid.uuid4())
+        api_key = settings.MOMO_API_KEY
+        target_env = settings.MOMO_TARGET_ENVIRONMENT
 
+        url = f"https://{target_env}.mtn.com/collection/v1_0/requesttopay"
         headers = {
-            "Authorization": f"Bearer {access_token}",
-            "X-Reference-Id": transaction_ref,
-            "X-Target-Environment": settings.MOMO_TARGET_ENVIRONMENT,
-            "Ocp-Apim-Subscription-Key": settings.MOMO_COLLECTIONS_API_KEY,
-            "Content-Type": "application/json"
+            'Authorization': f'Bearer {access_token}',
+            'X-Reference-Id': external_id,
+            'X-Target-Environment': target_env,
+            'Content-Type': 'application/json',
+            'Ocp-Apim-Subscription-Key': api_key
         }
-        
-        data = {
+
+        payload = {
             "amount": amount,
-            "currency": "EUR", # NOTE: This should be configured based on the API requirements
+            "currency": "EUR", # NOTE: Change this to your local currency code.
             "externalId": external_id,
             "payer": {
                 "partyIdType": "MSISDN",
-                "partyId": phone_number
+                "partyId": mobile
             },
-            "payerMessage": "Payment for Wi-Fi Hotspot",
+            "payerMessage": "Payment for Wi-Fi hotspot",
             "payeeNote": "Wi-Fi Hotspot Service"
         }
+
+        print(f"Attempting MoMo payment for mobile: {mobile}, amount: {amount}, transaction_id: {external_id}")
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
         
-        print(f">>> Attempting MoMo payment for phone: {phone_number}, amount: {amount}, external_id: {external_id}")
-        response = requests.post(request_to_pay_url, headers=headers, json=data)
-        
-        print("--- MoMo API Response Start ---")
+        # Log the full response for debugging
+        print("--- MoMo API RequestToPay Response Start ---")
         print(f"Status Code: {response.status_code}")
-        print(f"Response Body: {response.text}")
-        print("--- MoMo API Response End ---")
-        
-        if response.status_code == 202:
+        try:
+            print(f"Response Body: {response.json()}")
+        except json.JSONDecodeError:
+            print(f"Response Body (non-JSON): {response.text}")
+        print("--- MoMo API RequestToPay Response End ---")
+
+        if response.status_code in [200, 201, 202]:
             return True, "Payment request sent successfully."
         else:
             error_message = response.json().get('message', 'Payment initiation failed.')
             return False, error_message
     
-    except requests.exceptions.RequestException as e:
-        print(f"Error making request to pay: {e}")
-        return False, "Failed to communicate with the payment gateway."
-        
+    except requests.exceptions.ConnectionError as e:
+        print(f"ConnectionError during RequestToPay: {e}")
+        return False, "Server network error. Unable to connect to the payment gateway."
+    except Exception as e:
+        print(f"An unexpected error occurred during MoMo payment: {e}")
+        return False, "An unexpected error occurred while initiating payment."
+
+
 def get_payment_status(access_token, external_id):
     """
-    Checks the status of a payment request.
-    
-    Args:
-        access_token (str): The valid access token.
-        external_id (str): The unique identifier for the transaction.
-        
-    Returns:
-        tuple: (success, status) where status is the payment state or an error message.
+    Checks the status of a payment.
     """
-    if not access_token:
-        return False, "Failed to get access token."
-        
     try:
-        check_status_url = f"https://{settings.MOMO_TARGET_ENVIRONMENT}.mtn.com/collection/v1_0/requesttopay/{external_id}"
-        
+        api_key = settings.MOMO_API_KEY
+        target_env = settings.MOMO_TARGET_ENVIRONMENT
+
+        url = f"https://{target_env}.mtn.com/collection/v1_0/requesttopay/{external_id}"
         headers = {
-            "Authorization": f"Bearer {access_token}",
-            "X-Target-Environment": settings.MOMO_TARGET_ENVIRONMENT,
-            "Ocp-Apim-Subscription-Key": settings.MOMO_COLLECTIONS_API_KEY,
+            'Authorization': f'Bearer {access_token}',
+            'X-Target-Environment': target_env,
+            'Ocp-Apim-Subscription-Key': api_key
         }
-        
-        response = requests.get(check_status_url, headers=headers)
+
+        print(f"Checking status for transaction ID: {external_id}")
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
-        
-        payment_status = response.json().get('status')
-        return True, payment_status
-        
+
+        status_data = response.json()
+        print(f"Status check response: {status_data}")
+        return True, status_data.get('status')
+    
+    except requests.exceptions.ConnectionError as e:
+        print(f"ConnectionError during status check: {e}")
+        return False, "Server network error. Unable to connect to the payment gateway."
     except requests.exceptions.RequestException as e:
         print(f"Error checking payment status: {e}")
-        return False, "Failed to retrieve payment status."
+        return False, "Failed to check payment status."
+    except Exception as e:
+        print(f"An unexpected error occurred while checking payment status: {e}")
+        return False, "An unexpected error occurred while checking payment status."

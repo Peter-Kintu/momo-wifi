@@ -7,6 +7,7 @@ from django.utils import timezone
 from .models import Payment, WifiSession, Plan
 from .mtnmomo_api import get_access_token, request_to_pay, get_payment_status
 
+
 # This is a placeholder for your MikroTik integration.
 def create_mikrotik_user(phone_number, plan: Plan):
     """
@@ -36,6 +37,7 @@ def initiate_momo_payment(phone_number, amount, transaction_id):
         # Get an access token for the API call
         access_token = get_access_token()
         if not access_token:
+            # The error is already logged in get_access_token, return a simple message.
             return False, "Failed to get access token for payment."
             
         # Use the custom request_to_pay function
@@ -70,3 +72,4 @@ def check_momo_payment_status(transaction_id):
     except Exception as e:
         print(f"Error in check_momo_payment_status: {e}")
         return False, "An unexpected error occurred while checking payment status."
+
