@@ -69,3 +69,21 @@ def initiate_momo_payment(phone_number, amount, transaction_id):
     except Exception as e:
         print(f"Exception during MoMo payment initiation: {e}")
         return False, "An error occurred while initiating the payment."
+
+# New function to check the status of a payment request
+def check_payment_status(transaction_id):
+    """
+    Checks the status of a payment request using the MTN MoMo API.
+    """
+    try:
+        collections = Collection({
+            'COLLECTIONS_API_KEY': settings.MOMO_COLLECTIONS_API_KEY,
+            'MOMO_API_USER_ID': settings.MOMO_API_USER_ID,
+            'MOMO_API_KEY': settings.MOMO_API_KEY,
+            'TARGET_ENVIRONMENT': settings.MOMO_TARGET_ENVIRONMENT,
+        })
+        response = collections.requestToPayStatus(transaction_id)
+        return response.get('json_response', {})
+    except Exception as e:
+        print(f"Error checking payment status: {e}")
+        return {"status": "failed", "message": "Failed to check payment status."}
