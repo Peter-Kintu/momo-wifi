@@ -1,19 +1,17 @@
 import os
 import requests
 import json
+import uuid
 from requests.auth import HTTPBasicAuth
 from django.conf import settings
 
 def get_access_token():
     """
     Requests an access token from the MTN MoMo API using HTTPBasicAuth.
-    This is a more secure and standard way to handle the authentication.
-    It uses the MOMO_COLLECTION_API_USER and MOMO_COLLECTION_API_KEY
-    for the Basic Auth header.
     """
     url = f"https://sandbox.momodeveloper.mtn.com/collection/token/"
     
-    # Load credentials from settings
+    # Load credentials from environment variables
     api_user = os.getenv("MOMO_COLLECTION_API_USER")
     api_key = os.getenv("MOMO_COLLECTION_API_KEY")
     subscription_key = os.getenv("MOMO_COLLECTION_SUBSCRIPTION_KEY")
@@ -25,7 +23,6 @@ def get_access_token():
 
     headers = {
         "Ocp-Apim-Subscription-Key": subscription_key,
-        "X-Reference-Id": "YOUR_REFERENCE_ID_HERE", # Note: this is for a specific API call, not token request
     }
     
     try:
@@ -46,11 +43,21 @@ def get_access_token():
 def request_to_pay(access_token, phone_number, amount, transaction_id):
     """
     Sends a request-to-pay to the MTN MoMo API.
+    
+    Args:
+        access_token (str): The access token for the API.
+        phone_number (str): The user's phone number.
+        amount (str): The amount to be requested.
+        transaction_id (str): A unique transaction ID.
+    
+    Returns:
+        tuple: (success, message)
     """
     url = f"https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay"
     
     subscription_key = os.getenv("MOMO_COLLECTION_SUBSCRIPTION_KEY")
     callback_url = os.getenv("MOMO_CALLBACK_URL")
+    currency = os.getenv("MOMO_CURRENCY", "UGX") # Default to UGX if not set
     
     if not all([subscription_key, callback_url]):
         print("Error: Missing subscription key or callback URL for payment request.")
@@ -65,13 +72,19 @@ def request_to_pay(access_token, phone_number, amount, transaction_id):
         "X-Callback-Url": callback_url,
     }
     
+    # The API expects the phone number in MSISDN format without the leading '0'
+    # The `lstrip('0')` is a good start, but we add a check to be more robust
+    formatted_phone_number = phone_number.lstrip('0')
+    if not formatted_phone_number.isdigit() or len(formatted_phone_number) < 8:
+        return False, "Invalid phone number format."
+        
     payload = {
-        "amount": amount,
-        "currency": "EUR", # Assuming EUR for the sandbox environment
+        "amount": str(amount), # Amount must be a string
+        "currency": currency,
         "externalId": transaction_id,
         "payer": {
             "partyIdType": "MSISDN",
-            "partyId": phone_number.lstrip('0')
+            "partyId": formatted_phone_number
         },
         "payerMessage": "Payment for WiFi access",
         "payeeNote": "WiFi Access"
@@ -116,4 +129,3 @@ def get_payment_status(access_token, transaction_id):
     except requests.exceptions.RequestException as e:
         print(f"Error in get_payment_status: {e}")
         return False, f"An error occurred: {e}"
-
