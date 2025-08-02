@@ -21,4 +21,4 @@ whitenoise==6.6.0
 
 requests==2.31.0
 
-mtnmomo==0.1.0
+mtnmomo==3.0.1
