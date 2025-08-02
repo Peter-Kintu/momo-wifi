@@ -2,6 +2,20 @@ import requests
 import json
 from django.conf import settings
 
+# This function determines the correct base URL based on the environment setting.
+def get_base_url():
+    """
+    Returns the appropriate MTN MoMo API base URL based on the TARGET_ENVIRONMENT setting.
+    """
+    target_env = settings.MOMO_TARGET_ENVIRONMENT.lower()
+    if target_env == 'production':
+        # Use a real production URL here. This is a placeholder.
+        return "https://api.mtn.com"
+    elif target_env == 'sandbox':
+        return "https://sandbox.momodeveloper.mtn.com"
+    else:
+        raise ValueError("MOMO_TARGET_ENVIRONMENT must be 'sandbox' or 'production'")
+
 def get_access_token():
     """
     Retrieves an access token from the MTN MoMo API.
@@ -9,16 +23,14 @@ def get_access_token():
     try:
         api_user_id = settings.MOMO_API_USER_ID
         api_key = settings.MOMO_API_KEY
-        target_env = settings.MOMO_TARGET_ENVIRONMENT
+        base_url = get_base_url()
 
         # Check if environment variables are set
-        if not all([api_user_id, api_key, target_env]):
-            print("Error: Missing MTN MoMo API credentials in settings.")
+        if not all([api_user_id, api_key, base_url]):
+            print("Error: Missing MTN MoMo API credentials or base URL in settings.")
             return None
         
-        # NOTE: Using a hardcoded URL for demonstration. In a real-world scenario,
-        # this should be configurable via settings.
-        url = f"https://{target_env}.mtn.com/collection/token/"
+        url = f"{base_url}/collection/token/"
         headers = {
             'Content-Type': 'application/json',
             'Ocp-Apim-Subscription-Key': api_key
@@ -49,13 +61,13 @@ def request_to_pay(access_token, mobile, amount, external_id):
     """
     try:
         api_key = settings.MOMO_API_KEY
-        target_env = settings.MOMO_TARGET_ENVIRONMENT
+        base_url = get_base_url()
 
-        url = f"https://{target_env}.mtn.com/collection/v1_0/requesttopay"
+        url = f"{base_url}/collection/v1_0/requesttopay"
         headers = {
             'Authorization': f'Bearer {access_token}',
             'X-Reference-Id': external_id,
-            'X-Target-Environment': target_env,
+            'X-Target-Environment': settings.MOMO_TARGET_ENVIRONMENT,
             'Content-Type': 'application/json',
             'Ocp-Apim-Subscription-Key': api_key
         }
@@ -104,12 +116,12 @@ def get_payment_status(access_token, external_id):
     """
     try:
         api_key = settings.MOMO_API_KEY
-        target_env = settings.MOMO_TARGET_ENVIRONMENT
+        base_url = get_base_url()
 
-        url = f"https://{target_env}.mtn.com/collection/v1_0/requesttopay/{external_id}"
+        url = f"{base_url}/collection/v1_0/requesttopay/{external_id}"
         headers = {
             'Authorization': f'Bearer {access_token}',
-            'X-Target-Environment': target_env,
+            'X-Target-Environment': settings.MOMO_TARGET_ENVIRONMENT,
             'Ocp-Apim-Subscription-Key': api_key
         }
 
