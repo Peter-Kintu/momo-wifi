@@ -3,184 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wi-Fi Hotspot Login</title>
-    <!-- Load Tailwind CSS from CDN -->
+    <title>Hotspot Login</title>
+    <!-- Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter font from Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Custom styles for a cleaner UI */
+        .plan-card {
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
         }
         .plan-card:hover {
-            transform: scale(1.05);
+            transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .plan-card.selected {
+            border-color: #3b82f6; /* Blue border for selected card */
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5); /* Glowing effect */
+        }
+        .success-message {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 1000;
         }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-lg w-full text-center">
-        <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Connect to Wi-Fi</h1>
-            <p class="text-gray-600">Choose a plan to get started.</p>
-        </header>
+<body class="flex items-center justify-center min-h-screen">
 
-        <!-- Loading indicator -->
-        <div id="loading" class="text-center text-gray-500 hidden">
-            <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p class="mt-2">Loading plans...</p>
+    <div class="container bg-white p-8 md:p-10 rounded-xl shadow-2xl max-w-lg w-full mx-4 my-8">
+        <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Welcome to Our Hotspot</h2>
+        <p class="text-center text-gray-600 mb-8">Please choose a plan to connect.</p>
+
+        <!-- Display plans from Django context -->
+        <div id="plans-container" class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+            <!-- Plans will be dynamically inserted here -->
+            {% for plan in plans %}
+            <div class="plan-card p-6 border-2 border-gray-200 rounded-lg text-center" data-plan-id="{{ plan.id }}" data-price="{{ plan.price }}">
+                <h3 class="text-xl font-semibold mb-2 text-gray-800">{{ plan.name }}</h3>
+                <p class="text-2xl font-bold text-indigo-600 mb-2">${{ plan.price }}</p>
+                <p class="text-gray-500">{{ plan.duration_minutes }} minutes</p>
+            </div>
+            {% endfor %}
         </div>
 
-        <!-- Plans Container -->
-        <div id="plans-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <!-- Plan cards will be dynamically inserted here by JavaScript -->
-        </div>
+        <form id="payment-form" class="space-y-6">
+            <!-- Payment Provider Selection -->
+            <div class="mb-6">
+                <label class="block text-gray-700 font-medium mb-2">Select Payment Provider</label>
+                <div class="flex justify-center space-x-4">
+                    <label class="flex items-center space-x-2 p-4 border-2 border-gray-200 rounded-lg cursor-pointer transition-colors duration-200 hover:bg-gray-100 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500">
+                        <input type="radio" name="provider" value="mtn" class="form-radio text-blue-600 focus:ring-blue-500" required>
+                        <span class="text-gray-800 font-medium">MTN MoMo</span>
+                    </label>
+                    <label class="flex items-center space-x-2 p-4 border-2 border-gray-200 rounded-lg cursor-pointer transition-colors duration-200 hover:bg-gray-100 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-500">
+                        <input type="radio" name="provider" value="airtel" class="form-radio text-red-600 focus:ring-red-500" required>
+                        <span class="text-gray-800 font-medium">Airtel Money</span>
+                    </label>
+                </div>
+            </div>
 
-        <!-- Payment Form -->
-        <form id="payment-form" class="space-y-4">
+            <!-- Phone Number Input -->
             <div>
-                <label for="phone-number" class="block text-left text-sm font-medium text-gray-700">Phone Number</label>
-                <input type="tel" id="phone-number" name="phone_number" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" placeholder="e.g., 2567xxxxxxxx">
+                <label for="phone_number" class="block text-sm font-medium text-gray-700">Phone Number</label>
+                <div class="mt-1">
+                    <input id="phone_number" name="phone_number" type="tel" required
+                        class="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="e.g., 25677xxxxxxx">
+                </div>
             </div>
-            <div>
-                <label for="plan-id" class="block text-left text-sm font-medium text-gray-700">Selected Plan</label>
-                <select id="plan-id" name="plan_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
-                    <!-- Options will be populated by JavaScript -->
-                </select>
-            </div>
-            <button type="submit" id="submit-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-300 ease-in-out transform hover:-translate-y-1">
-                Initiate Payment
+
+            <!-- Hidden input for selected plan -->
+            <input type="hidden" name="plan_id" id="plan_id">
+
+            <div id="error-message" class="text-red-600 text-sm text-center font-medium mt-4 hidden"></div>
+
+            <button type="submit" id="pay-button"
+                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+                Pay Now
             </button>
         </form>
+    </div>
 
-        <!-- Message Box -->
-        <div id="message-box" class="mt-6 p-4 rounded-md hidden">
-            <p id="message-text" class="font-medium"></p>
+    <!-- Success message container -->
+    <div id="success-message" class="success-message">
+        <h3 class="text-2xl font-bold mb-2">Payment Successful!</h3>
+        <p class="text-lg mb-4">Your Wi-Fi session has been activated.</p>
+        <p>Your unique token is:</p>
+        <div class="bg-gray-100 p-3 rounded-lg mt-2 inline-block">
+            <span id="session-token" class="text-2xl font-mono font-bold text-gray-800"></span>
         </div>
+        <button id="copy-token-button" class="mt-4 py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200">
+            Copy Token
+        </button>
+        <a href="/" class="block mt-4 text-blue-600 hover:underline">Log in with token</a>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const plansContainer = document.getElementById('plans-container');
-            const planSelect = document.getElementById('plan-id');
+        document.addEventListener('DOMContentLoaded', function() {
+            const planCards = document.querySelectorAll('.plan-card');
+            const planIdInput = document.getElementById('plan_id');
             const paymentForm = document.getElementById('payment-form');
-            const loadingIndicator = document.getElementById('loading');
-            const messageBox = document.getElementById('message-box');
-            const messageText = document.getElementById('message-text');
-            const submitButton = document.getElementById('submit-button');
+            const errorMessageDiv = document.getElementById('error-message');
+            const successMessageDiv = document.getElementById('success-message');
+            const sessionTokenSpan = document.getElementById('session-token');
+            const copyTokenButton = document.getElementById('copy-token-button');
+            const payButton = document.getElementById('pay-button');
 
-            // Function to show messages
-            const showMessage = (text, type = 'success') => {
-                messageText.textContent = text;
-                messageBox.classList.remove('hidden', 'bg-red-100', 'bg-green-100');
-                if (type === 'success') {
-                    messageBox.classList.add('bg-green-100', 'text-green-700');
-                } else {
-                    messageBox.classList.add('bg-red-100', 'text-red-700');
-                }
-            };
-
-            // Fetch and render plans
-            const fetchPlans = async () => {
-                loadingIndicator.classList.remove('hidden');
-                try {
-                    const response = await fetch('/');
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch plans');
-                    }
-                    const data = await response.json();
-                    
-                    if (data.plans && data.plans.length > 0) {
-                        plansContainer.innerHTML = ''; // Clear existing content
-                        planSelect.innerHTML = ''; // Clear existing options
-                        data.plans.forEach(plan => {
-                            // Create plan card for display
-                            const planCard = document.createElement('div');
-                            planCard.className = 'plan-card bg-gray-50 p-4 rounded-xl transition duration-300 ease-in-out transform hover:bg-blue-50 cursor-pointer text-left';
-                            planCard.innerHTML = `
-                                <h3 class="text-xl font-semibold text-gray-800">${plan.name}</h3>
-                                <p class="text-gray-600">${plan.duration_minutes} minutes</p>
-                                <p class="text-3xl font-bold text-gray-900 mt-2">UGX ${plan.price}</p>
-                            `;
-                            planCard.onclick = () => {
-                                // Select this plan when the card is clicked
-                                planSelect.value = plan.id;
-                                // Add a visual indicator for the selected card
-                                document.querySelectorAll('.plan-card').forEach(card => card.classList.remove('border-2', 'border-blue-500'));
-                                planCard.classList.add('border-2', 'border-blue-500');
-                            };
-                            plansContainer.appendChild(planCard);
-
-                            // Create option for the select dropdown
-                            const option = document.createElement('option');
-                            option.value = plan.id;
-                            option.textContent = `${plan.name} (UGX ${plan.price})`;
-                            planSelect.appendChild(option);
-                        });
-                        // Select the first plan by default
-                        plansContainer.children[0].classList.add('border-2', 'border-blue-500');
-                        planSelect.value = data.plans[0].id;
-                    } else {
-                        plansContainer.innerHTML = '<p class="text-gray-500 col-span-2">No plans available.</p>';
-                    }
-                } catch (error) {
-                    console.error("Error fetching plans:", error);
-                    plansContainer.innerHTML = `<p class="text-red-500 col-span-2">An error occurred. Please try again later.</p>`;
-                } finally {
-                    loadingIndicator.classList.add('hidden');
-                }
-            };
+            // Handle plan selection
+            planCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    planCards.forEach(c => c.classList.remove('selected', 'border-indigo-600'));
+                    card.classList.add('selected', 'border-indigo-600');
+                    planIdInput.value = card.dataset.planId;
+                });
+            });
 
             // Handle form submission
-            paymentForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                messageBox.classList.add('hidden');
-                submitButton.disabled = true;
-                submitButton.textContent = 'Processing...';
+            paymentForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                
+                errorMessageDiv.textContent = '';
+                errorMessageDiv.style.display = 'none';
+                
+                const selectedPlan = document.querySelector('.plan-card.selected');
+                const selectedProvider = document.querySelector('input[name="provider"]:checked');
 
-                const formData = new FormData(paymentForm);
-                const data = Object.fromEntries(formData.entries());
-
-                // Perform client-side validation
-                if (!data.phone_number || !data.plan_id) {
-                    showMessage('Please enter a phone number and select a plan.', 'error');
-                    submitButton.disabled = false;
-                    submitButton.textContent = 'Initiate Payment';
+                if (!selectedPlan) {
+                    errorMessageDiv.textContent = 'Please select a plan.';
+                    errorMessageDiv.style.display = 'block';
                     return;
                 }
+
+                if (!selectedProvider) {
+                    errorMessageDiv.textContent = 'Please select a payment provider.';
+                    errorMessageDiv.style.display = 'block';
+                    return;
+                }
+
+                const phoneNumber = document.getElementById('phone_number').value;
+                const planId = planIdInput.value;
+                const provider = selectedProvider.value;
+
+                // Simple validation for phone number
+                if (!phoneNumber) {
+                    errorMessageDiv.textContent = 'Please enter your phone number.';
+                    errorMessageDiv.style.display = 'block';
+                    return;
+                }
+                
+                payButton.textContent = 'Processing...';
+                payButton.disabled = true;
+
+                const csrfToken = getCookie('csrftoken');
 
                 try {
                     const response = await fetch('/api/initiate-payment/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
                         },
-                        body: JSON.stringify(data),
+                        body: JSON.stringify({
+                            plan_id: planId,
+                            phone_number: phoneNumber,
+                            provider: provider // Send the selected provider
+                        })
                     });
 
                     const result = await response.json();
+                    
+                    payButton.textContent = 'Pay Now';
+                    payButton.disabled = false;
 
-                    if (response.ok) {
-                        showMessage(`Payment initiated successfully for transaction ID: ${result.transaction_id}. Please approve the request on your phone.`, 'success');
+                    if (response.status === 202) {
+                        // Payment initiated successfully, now poll for status
+                        pollPaymentStatus(result.transaction_id, provider);
                     } else {
-                        showMessage(`Error: ${result.error || 'Something went wrong.'}`, 'error');
+                        errorMessageDiv.textContent = result.error || 'Payment initiation failed.';
+                        errorMessageDiv.style.display = 'block';
                     }
+
                 } catch (error) {
-                    console.error("Payment initiation failed:", error);
-                    showMessage(`An unexpected error occurred. Please try again.`, 'error');
-                } finally {
-                    submitButton.disabled = false;
-                    submitButton.textContent = 'Initiate Payment';
+                    console.error('Error during payment initiation:', error);
+                    errorMessageDiv.textContent = 'An error occurred. Please try again.';
+                    errorMessageDiv.style.display = 'block';
+                    payButton.textContent = 'Pay Now';
+                    payButton.disabled = false;
                 }
             });
 
-            // Initial call to fetch plans
-            fetchPlans();
+            // Polling function to check payment status
+            async function pollPaymentStatus(transactionId, provider) {
+                const csrfToken = getCookie('csrftoken');
+                let interval = setInterval(async () => {
+                    try {
+                        const response = await fetch('/api/check-payment-status/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken,
+                            },
+                            body: JSON.stringify({
+                                transaction_id: transactionId,
+                                provider: provider
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (response.status === 200) {
+                            if (result.status === 'successful') {
+                                clearInterval(interval);
+                                showSuccessMessage(result.token);
+                            } else if (result.status === 'failed') {
+                                clearInterval(interval);
+                                errorMessageDiv.textContent = 'Payment failed. Please try again.';
+                                errorMessageDiv.style.display = 'block';
+                                payButton.textContent = 'Pay Now';
+                                payButton.disabled = false;
+                            }
+                            // 'pending' status will continue polling
+                        } else {
+                            // Handle other non-200 responses as an error
+                            clearInterval(interval);
+                            errorMessageDiv.textContent = result.error || 'Payment status check failed.';
+                            errorMessageDiv.style.display = 'block';
+                            payButton.textContent = 'Pay Now';
+                            payButton.disabled = false;
+                        }
+                    } catch (error) {
+                        clearInterval(interval);
+                        console.error('Error polling payment status:', error);
+                        errorMessageDiv.textContent = 'An error occurred while checking payment status.';
+                        errorMessageDiv.style.display = 'block';
+                        payButton.textContent = 'Pay Now';
+                        payButton.disabled = false;
+                    }
+                }, 5000); // Poll every 5 seconds
+            }
+
+            function showSuccessMessage(token) {
+                sessionTokenSpan.textContent = token;
+                document.querySelector('.container').style.display = 'none';
+                successMessageDiv.style.display = 'block';
+            }
+
+            copyTokenButton.addEventListener('click', () => {
+                const tokenText = sessionTokenSpan.textContent;
+                navigator.clipboard.writeText(tokenText).then(() => {
+                    copyTokenButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyTokenButton.textContent = 'Copy Token';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Could not copy text: ', err);
+                });
+            });
+
+
+            // A helper function to get the CSRF token from cookies
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.startsWith(name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
         });
     </script>
 </body>
