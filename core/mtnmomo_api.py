@@ -55,16 +55,15 @@ def request_to_pay(access_token, phone_number, amount, transaction_id):
 
     url = "https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay"
 
-    # Per your instructions, the payload is constructed with the correct sandbox values.
-    # The 'partyId' is hardcoded to a valid sandbox test MSISDN.
+    # Corrected 'partyId' to the recommended sandbox test MSISDN.
+    # The 'phone_number' argument is no longer used in the payload.
     payload = {
         "amount": str(amount),
         "currency": "UGX",
         "externalId": transaction_id,
         "payer": {
             "partyIdType": "MSISDN",
-            # This is the hardcoded sandbox test MSISDN as per your guidance.
-            "partyId": "46733123454"
+            "partyId": "46733123453"
         },
         "payerMessage": "WiFi Payment",
         "payeeNote": "Testing MoMo API"
