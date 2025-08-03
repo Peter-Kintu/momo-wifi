@@ -6,138 +6,101 @@ import routeros_api
 from django.conf import settings
 from django.utils import timezone
 from .models import Payment, WifiSession, Plan
-from requests.exceptions import RequestException
-import logging
+from .airtel_api import initiate_airtel_payment_request # Import the new Airtel API functions
 
-# Set up logging for better error tracking
-logger = logging.getLogger(__name__)
 
-# This is a placeholder for your MikroTik integration.
 def create_mikrotik_user(phone_number, plan: Plan):
     """
     This function connects to the MikroTik router and creates a new user
     account for the paid session.
     """
     try:
-        # Load MikroTik credentials from settings
-        mikrotik_host = settings.MIKROTIK_HOST
-        mikrotik_user = settings.MIKROTIK_USER
-        mikrotik_password = settings.MIKROTIK_PASSWORD
-        mikrotik_port = 8728 # Default API port
-
-        # Connect to the MikroTik router API
         api = routeros_api.RouterOsApiPool(
-            host=mikrotik_host,
-            username=mikrotik_user,
-            password=mikrotik_password,
-            port=mikrotik_port,
+            host=settings.MIKROTIK_HOST,
+            username=settings.MIKROTIK_USER,
+            password=settings.MIKROTIK_PASSWORD,
+            port=8728,
             use_ssl=False,
         )
-
-        # Create a new user in the hotspot user list
         api.get_api().get_resource('/ip/hotspot/user').add(
             name=phone_number,
-            password=str(uuid.uuid4())[:8],  # Generate a simple, random password
+            password=str(uuid.uuid4())[:8],  # A simple, random password
             profile=plan.mikrotik_profile_name,
             limit_uptime=f"{plan.duration_minutes}m"
         )
         api.disconnect()
 
-        # Generate a unique token for the user session
         token = str(uuid.uuid4())[:8].upper()
         end_time = timezone.now() + timezone.timedelta(minutes=plan.duration_minutes)
 
-        # Save the session to your Django database
+        # Save the session to your database
         WifiSession.objects.create(
             phone_number=phone_number,
             plan=plan,
             token=token,
             end_time=end_time
         )
-        logger.info(f"MikroTik user and WifiSession created for {phone_number} with token: {token}")
+
+        print(f"MikroTik user would be created with token: {token}")
         return token
     except Exception as e:
-        logger.error(f"Error creating MikroTik user: {e}")
-        raise RuntimeError("Failed to create MikroTik user.")
+        print(f"Error connecting to MikroTik or creating user: {e}")
+        # In a real-world scenario, you would handle this gracefully,
+        # perhaps by marking the payment as 'pending_mikrotik_creation'
+        # and retrying later.
+        return None
 
-
-def initiate_flutterwave_payment_backend(phone_number, plan_id):
+def initiate_airtel_payment(phone_number, plan: Plan):
     """
-    Prepares the necessary data for the Flutterwave checkout.
-    This function creates a unique transaction reference and fetches the plan details.
+    Orchestrates the payment process with the Airtel API.
+    
+    Args:
+        phone_number (str): The phone number to charge.
+        plan (Plan): The plan object selected by the user.
+
+    Returns:
+        tuple: A boolean for success and a message or transaction ID.
     """
     try:
-        plan = Plan.objects.get(id=plan_id)
-        # Create a unique transaction reference
-        tx_ref = f"WIFI_PAYMENT_{uuid.uuid4().hex}"
+        # Create a unique transaction ID for our records
+        transaction_id = f"AIRTEL_{uuid.uuid4().hex}"
 
-        # Create a placeholder payment record in the database
+        # Create a new payment record in our database
         Payment.objects.create(
             phone_number=phone_number,
             plan=plan,
             amount=plan.price,
             status='pending',
-            transaction_id=tx_ref
+            transaction_id=transaction_id
         )
 
-        # Prepare data for the frontend Flutterwave checkout popup
-        return {
-            "public_key": settings.FLUTTERWAVE_PUBLIC_KEY,
-            "tx_ref": tx_ref,
-            "amount": float(plan.price),
-            "currency": "UGX",  # Hardcoded for Ugandan Shillings as per the user's context
-            "phone_number": phone_number,
-            # Placeholder values for customer details
-            "email": "customer@example.com",
-            "name": "WiFi User"
-        }
-    except Plan.DoesNotExist:
-        logger.error(f"Plan with id {plan_id} not found.")
-        raise ValueError("Selected plan does not exist.")
-    except Exception as e:
-        logger.error(f"Error initiating Flutterwave payment backend: {e}")
-        raise RuntimeError("An internal server error occurred.")
-
-
-def verify_flutterwave_payment(tx_ref, transaction_id):
-    """
-    Verifies a payment with Flutterwave's API and updates the payment status.
-    """
-    try:
-        # Build the verification URL
-        url = f"https://api.flutterwave.com/v3/transactions/{transaction_id}/verify"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.FLUTTERWAVE_SECRET_KEY}"
+        # Construct the payload for the Airtel API call
+        payload = {
+            "reference": "WiFi Access",
+            "subscriber": {
+                "country": "UG",
+                "currency": "UGX",
+                "msisdn": phone_number[-9:] # Airtel requires msisdn without country code
+            },
+            "transaction": {
+                "amount": str(plan.price), # Ensure amount is a string
+                "id": transaction_id
+            }
         }
 
-        # Make the request to Flutterwave's API
-        response = requests.get(url, headers=headers)
-        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
-        payment_data = response.json()
+        # Make the API call to Airtel
+        success, response = initiate_airtel_payment_request(payload)
 
-        if payment_data['status'] == 'success' and payment_data['data']['status'] == 'successful':
-            payment = Payment.objects.get(transaction_id=tx_ref)
-            payment.status = 'successful'
-            payment.save()
-            logger.info(f"Payment verification successful for transaction {tx_ref}")
-
-            # Now that payment is confirmed, create the MikroTik user
-            token = create_mikrotik_user(payment.phone_number, payment.plan)
-            return token
+        if success and response.get("status", {}).get("success"):
+            return True, transaction_id
         else:
-            payment = Payment.objects.get(transaction_id=tx_ref)
+            error_message = response.get("status", {}).get("message", "Airtel API error")
+            # Update the payment status to failed if the API call was unsuccessful
+            payment = Payment.objects.get(transaction_id=transaction_id)
             payment.status = 'failed'
             payment.save()
-            logger.warning(f"Payment verification failed for transaction {tx_ref}. Status: {payment_data.get('data', {}).get('status')}")
-            raise ValueError("Payment verification failed.")
+            return False, error_message
 
-    except Payment.DoesNotExist:
-        logger.error(f"Payment record with transaction_id {tx_ref} not found.")
-        raise ValueError("Payment transaction not found.")
-    except RequestException as e:
-        logger.error(f"Flutterwave API request failed: {e}")
-        raise RuntimeError("Failed to connect to the payment gateway.")
     except Exception as e:
-        logger.error(f"Unexpected error during payment verification: {e}")
-        raise RuntimeError("An internal server error occurred.")
+        print(f"Airtel payment initiation failed: {e}")
+        return False, "Failed to initiate Airtel payment."
