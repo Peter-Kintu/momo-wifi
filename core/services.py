@@ -13,6 +13,9 @@ from .mtnmomo_api import get_access_token, request_to_pay, get_payment_status
 def initiate_momo_payment(phone_number, amount, transaction_id):
     """
     Initiates a payment request using the MTN MoMo API.
+    
+    Note: The `phone_number` argument is currently not used, as the
+    `request_to_pay` function is hardcoded to use a sandbox test MSISDN.
     """
     try:
         # Get an access token for the API call
