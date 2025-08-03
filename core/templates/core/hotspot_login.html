@@ -15,18 +15,29 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm">
-        <h1 class="text-2xl font-bold text-center text-blue-800 mb-6">WiFi Hotspot</h1>
-        <p class="text-gray-600 text-center mb-6">Enter your token to activate your session.</p>
-        
-        <form method="POST" action="{% url 'activate_wifi' %}" class="space-y-4">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm mb-4">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-4">Hotspot Login</h1>
+        <p class="text-gray-600 text-center mb-6">Enter your token to activate your WiFi session.</p>
+
+        <form action="{% url 'activate_wifi' %}" method="post" class="space-y-4">
             {% csrf_token %}
-            <input type="text" name="token" placeholder="Enter your WiFi token" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200">
-            <button type="submit" class="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors duration-200">Activate WiFi</button>
+            <label for="token" class="sr-only">Enter Token</label>
+            <input type="text" id="token" name="token" placeholder="Enter Token" required
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+
+            <button type="submit"
+                    class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                Activate WiFi
+            </button>
         </form>
     </div>
+
+    <a href="{% url 'admin:index' %}"
+       class="w-full max-w-sm text-center bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors mt-2">
+        Go to Admin Panel
+    </a>
 
 </body>
 </html>

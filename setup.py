@@ -73,6 +73,7 @@ setup(
         'console_scripts': [
             # Uncomment and customize if you have CLI functionality
             # 'mtnmomo-cli=mtnmomo.cli:main',
+          
         ],
     },
 )
