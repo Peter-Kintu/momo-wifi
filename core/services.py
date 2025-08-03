@@ -6,11 +6,10 @@ from django.conf import settings
 from django.utils import timezone
 from .models import Payment, WifiSession, Plan
 from .mtnmomo_api import request_to_pay, get_payment_status
-from .routeros_api import create_mikrotik_user
 
+# This is no longer imported from this file, but from the new routeros_api.py
+# from .routeros_api import create_mikrotik_user
 
-# The `create_mikrotik_user` function has been moved to its own service file for better organization.
-# We no longer import `get_access_token` as it is handled internally by the new mtnmomo_api.
 
 def initiate_momo_payment(phone_number, amount, transaction_id):
     """
@@ -21,6 +20,7 @@ def initiate_momo_payment(phone_number, amount, transaction_id):
     """
     try:
         # The new request_to_pay function only requires these three arguments.
+        # This is the line that was causing the error previously.
         success, message = request_to_pay(phone_number, str(amount), transaction_id)
 
         if success:
@@ -51,4 +51,3 @@ def check_momo_payment_status(transaction_id):
     except Exception as e:
         print(f"Error in check_momo_payment_status: {e}")
         return False, "An unexpected error occurred while checking payment status."
-
