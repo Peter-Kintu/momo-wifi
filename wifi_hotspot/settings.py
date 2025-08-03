@@ -62,7 +62,7 @@ ROOT_URLCONF = 'wifi_hotspot.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [BASE_DIR / 'core/templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -124,19 +124,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# MTN MoMo API settings
-# These variables are loaded from the .env file
-MOMO_COLLECTIONS_API_KEY = os.getenv('MOMO_COLLECTIONS_API_KEY')
-COLLECTION_PRIMARY_KEY = os.getenv('COLLECTION_PRIMARY_KEY')
-MOMO_API_USER_ID = os.getenv('MOMO_API_USER_ID')
-MOMO_API_KEY = os.getenv('MOMO_API_KEY')
-MOMO_TARGET_ENVIRONMENT = os.getenv('MOMO_TARGET_ENVIRONMENT')
-MOMO_CALLBACK_URL = os.getenv('MOMO_CALLBACK_URL')
-MOMO_CURRENCY = os.getenv('MOMO_CURRENCY', 'UGX')
+# Flutterwave API settings
+FLW_SECRET_KEY = os.getenv('FLW_SECRET_KEY')
