@@ -61,15 +61,13 @@ class WifiSession(models.Model):
                 
                 payload = {
                     'username': settings.AFRICASTALKING_USERNAME,
-                    'phoneNumbers': self.phone_number,
+                    'to': self.phone_number,
                     'message': message,
-                    # Add your registered Sender ID or short code here
-                    'senderId': settings.AFRICASTALKING_SENDER_ID,
                 }
                 headers = {'Accept': 'application/json', 'apiKey': settings.AFRICASTALKING_API_KEY}
                 
                 try:
-                    requests.post('https://api.africastalking.com/version1/messaging/bulk', data=payload, headers=headers)
+                    requests.post('https://api.africastalking.com/version1/messaging', data=payload, headers=headers)
                     logger.info(f"Token sent to {self.phone_number} using Africa's Talking.")
                 except requests.exceptions.RequestException as e:
                     logger.error(f"Failed to send SMS to {self.phone_number}: {e}")

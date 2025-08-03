@@ -50,7 +50,7 @@ def generate_and_send_token(modeladmin, request, queryset):
                     'apiKey': 'your_api_key',
                     'username': 'your_username'
                 }
-                #requests.post('https://api.africastalking.com/version1/messaging', data=payload)
+                # requests.post('https://api.africastalking.com/version1/messaging', data=payload)
                 
                 success_count += 1
                 messages.success(request, f"Token generated and (simulated) sent to {session.phone_number}.")
@@ -74,6 +74,12 @@ class WifiSessionAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'plan')
     search_fields = ('phone_number', 'token')
     actions = [generate_and_send_token]
+    
+    # These fields will be displayed in the form
+    fields = ('phone_number', 'plan')
+    
+    # These fields will not be editable by the user
+    readonly_fields = ('token', 'end_time', 'is_active')
 
 admin.site.register(WifiSession, WifiSessionAdmin)
 admin.site.register(Plan)
