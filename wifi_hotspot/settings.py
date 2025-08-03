@@ -40,7 +40,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'django_backend.urls'
+ROOT_URLCONF = 'wifi_hotspot.urls'
 
 TEMPLATES = [
     {
@@ -58,14 +58,23 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'django_backend.wsgi.application'
-
+WSGI_APPLICATION = 'wifi_hotspot.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-DATABASES = {
-    'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
-}
+if os.environ.get('DATABASE_URL'):
+    # Use the database URL from the environment variable (e.g., on Render)
+    DATABASES = {
+        'default': dj_database_url.config(default=os.environ.get('DATABASE_URL'))
+    }
+else:
+    # Fallback to a local SQLite database for development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
