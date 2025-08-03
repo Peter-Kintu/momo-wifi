@@ -20,6 +20,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,7 +41,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'wifi_hotspot.urls'
+ROOT_URLCONF = 'django_backend.urls'
 
 TEMPLATES = [
     {
@@ -58,7 +59,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'wifi_hotspot.wsgi.application'
+WSGI_APPLICATION = 'django_backend.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
@@ -125,3 +126,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY')
 AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME')
 AFRICASTALKING_SENDER_ID = os.environ.get('AFRICASTALKING_SENDER_ID')
+
+# JAZZMIN Settings
+JAZZMIN_SETTINGS = {
+    "site_title": "MoMo WiFi Admin",
+    "site_header": "MoMo WiFi",
+    "site_brand": "MoMo WiFi",
+    "site_icon": "images/logo.png",
+    # Welcome message
+    "welcome_sign": "Welcome to the MoMo WiFi Admin Panel",
+    # Copyright on the footer
+    "copyright": "MoMo WiFi Ltd",
+}
