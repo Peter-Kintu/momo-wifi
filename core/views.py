@@ -1,15 +1,15 @@
-import uuid
-import json
-from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+# wifi_hotspot/views.py
+
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.utils import timezone
 from .models import Plan, Payment, WifiSession
-
-# Corrected import: We only need to import initiate_momo_payment from services.
-# The create_mikrotik_user function is defined in this file.
-from .services import initiate_momo_payment
+from .services import initiate_momo_payment, create_mikrotik_user
+import uuid
+import json
 
 
 # This is a placeholder for your MikroTik integration.
@@ -45,35 +45,37 @@ def hotspot_login_page(request):
 @csrf_exempt
 def initiate_payment(request):
     """
-    Handles the initiation of a payment request.
+    Initiates a payment with MTN MoMo.
     """
-    print(">>> Received a request to initiate payment.")
     if request.method == 'POST':
         try:
-            # We expect a JSON payload from the frontend.
             data = json.loads(request.body)
             phone_number = data.get('phone_number')
             plan_id = data.get('plan_id')
-            print(f">>> Request Data: phone_number={phone_number}, plan_id={plan_id}")
 
-        except json.JSONDecodeError:
-            print(">>> Error: Invalid JSON in request body.")
-            return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+            if not phone_number or not plan_id:
+                return JsonResponse({"error": "Missing phone number or plan ID."}, status=400)
 
-        # Basic validation
-        if not phone_number or not plan_id:
-            return JsonResponse({'error': 'Phone number and plan are required.'}, status=400)
+            print(f">>> Received a request to initiate payment. Request Data: phone_number={phone_number}, plan_id={plan_id}")
 
-        try:
-            plan = Plan.objects.get(pk=plan_id)
-        except Plan.DoesNotExist:
-            return JsonResponse({'error': 'Invalid plan selected.'}, status=404)
+            # --- CHANGE FOR SANDBOX TESTING ---
+            # To test with the MTN MoMo sandbox, we must use a test MSISDN.
+            # We are overriding the user-provided phone number with a known sandbox test number.
+            # A common test number is 256772123456.
+            # For production, you would remove this line.
+            phone_number = '256772123456'
+            # ---------------------------------
+            
+            try:
+                plan = Plan.objects.get(id=plan_id)
+            except Plan.DoesNotExist:
+                return JsonResponse({"error": "Selected plan does not exist."}, status=404)
 
-        # Create a new payment record in the database
-        transaction_id = str(uuid.uuid4()) # Create a unique transaction ID
+            # Create a unique transaction ID
+            transaction_id = str(uuid.uuid4())
 
-        try:
             with transaction.atomic():
+                # Create a pending payment record
                 payment = Payment.objects.create(
                     phone_number=phone_number,
                     plan=plan,
@@ -81,27 +83,28 @@ def initiate_payment(request):
                     transaction_id=transaction_id,
                     status='pending'
                 )
-                print(f">>> Created pending payment record with ID: {payment.transaction_id}")
+                print(f">>> Created pending payment record with ID: {transaction_id}")
 
-                # Initiate payment with MTN MoMo
-                success, message = initiate_momo_payment(
-                    phone_number=phone_number,
-                    amount=plan.price,
-                    transaction_id=payment.transaction_id
-                )
+                success, message = initiate_momo_payment(phone_number, plan.price, transaction_id)
 
                 if success:
-                    print(f">>> Payment initiated successfully for transaction ID: {payment.transaction_id}")
-                    payment.status = 'sent' # Update status to 'sent'
-                    payment.save()
-                    return JsonResponse({'message': 'Payment request sent successfully. Please approve the payment on your phone.'})
+                    print(f">>> Payment initiated successfully. Transaction ID: {transaction_id}")
+                    # Return the transaction ID and a status code indicating the request was accepted
+                    # and the payment is pending. The client-side will use this ID to poll for status.
+                    return JsonResponse({"message": message, "transaction_id": transaction_id}, status=202)
                 else:
                     print(f">>> Failed to initiate payment: {message}")
                     payment.status = 'failed'
                     payment.save()
                     return JsonResponse({"error": message}, status=500)
+
+        except json.JSONDecodeError:
+            print(">>> Invalid JSON in request body.")
+            return JsonResponse({"error": "Invalid JSON in request body."}, status=400)
         except Exception as e:
-            print(f">>> An unexpected error occurred during payment initiation: {e}")
+            print(f"Error during payment initiation: {e}")
+            payment.status = 'failed'
+            payment.save()
             return JsonResponse({"error": "An internal server error occurred."}, status=500)
 
     print(">>> Invalid request method. Not a POST request.")
@@ -139,6 +142,6 @@ def payment_callback(request):
             token = create_mikrotik_user(payment.phone_number, payment.plan)
             return HttpResponse(f"Payment successful, user created with token: {token}", status=200)
         else:
-            return HttpResponse("Payment failed or was rejected.", status=200)
+            return HttpResponse(f"Payment status: {payment_status}", status=200)
 
     return HttpResponse(status=405)
