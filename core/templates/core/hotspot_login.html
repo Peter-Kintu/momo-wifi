@@ -3,253 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Hotspot</title>
-    <!-- Add Flutterwave Checkout script -->
-    <script src="https://checkout.flutterwave.com/v3.js"></script>
+    <title>Wi-Fi Hotspot Login</title>
+    <!-- Load Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            text-align: center;
-            padding-top: 50px;
-            background-color: #f0f2f5;
-            color: #333;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
         }
-        .container {
-            width: 90%;
-            max-width: 450px;
-            margin: auto;
-            padding: 30px;
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            box-sizing: border-box;
-        }
-        h2 {
-            color: #00796b;
-            margin-bottom: 10px;
-        }
-        .plan {
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            margin-bottom: 15px;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s ease-in-out;
-            text-align: left;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .plan:hover {
-            border-color: #00796b;
-            box-shadow: 0 2px 8px rgba(0, 121, 107, 0.2);
-        }
-        .plan.selected {
-            border-color: #00796b;
-            background-color: #e0f2f1;
-            box-shadow: 0 4px 12px rgba(0, 121, 107, 0.3);
-        }
-        .plan-details {
-            font-size: 1.1em;
-            font-weight: 500;
-        }
-        .plan-price {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #004d40;
-        }
-        form {
-            margin-top: 20px;
-        }
-        input[type="tel"] {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 1em;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #00796b;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            transition: background-color 0.2s ease;
-        }
-        button:hover {
-            background-color: #004d40;
-        }
-        .message-container {
-            margin-top: 20px;
-        }
-        .message, .error {
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
-            text-align: left;
-        }
-        .message {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        .plan-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h2>Your Hotspot</h2>
-        <p>Select a plan and enter your phone number to get started.</p>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-lg w-full text-center">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Connect to Wi-Fi</h1>
+            <p class="text-gray-600">Choose a plan to get started.</p>
+        </header>
 
-        <form id="hotspot-form" method="post">
-            <input type="hidden" name="plan_id" id="plan-id-input">
-            {% for plan in plans %}
-                <div class="plan" data-plan-id="{{ plan.id }}" data-price="{{ plan.price }}">
-                    <div class="plan-details">
-                        <strong>{{ plan.name }}</strong>
-                        <p>Duration: {{ plan.duration_minutes }} minutes</p>
-                    </div>
-                    <div class="plan-price">{{ plan.price|floatformat:0 }}</div>
-                </div>
-            {% endfor %}
+        <!-- Loading indicator -->
+        <div id="loading" class="text-center text-gray-500 hidden">
+            <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-2">Loading plans...</p>
+        </div>
 
-            <input type="tel" id="phone-number-input" name="phone_number" placeholder="Enter your phone number" required>
-            <button type="submit">Pay with Flutterwave</button>
+        <!-- Plans Container -->
+        <div id="plans-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Plan cards will be dynamically inserted here by JavaScript -->
+        </div>
+
+        <!-- Payment Form -->
+        <form id="payment-form" class="space-y-4">
+            <div>
+                <label for="phone-number" class="block text-left text-sm font-medium text-gray-700">Phone Number</label>
+                <input type="tel" id="phone-number" name="phone_number" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2" placeholder="e.g., 2567xxxxxxxx">
+            </div>
+            <div>
+                <label for="plan-id" class="block text-left text-sm font-medium text-gray-700">Selected Plan</label>
+                <select id="plan-id" name="plan_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2">
+                    <!-- Options will be populated by JavaScript -->
+                </select>
+            </div>
+            <button type="submit" id="submit-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition duration-300 ease-in-out transform hover:-translate-y-1">
+                Initiate Payment
+            </button>
         </form>
-        <div class="message-container">
-            <div id="message" class="message"></div>
-            <div id="error" class="error"></div>
+
+        <!-- Message Box -->
+        <div id="message-box" class="mt-6 p-4 rounded-md hidden">
+            <p id="message-text" class="font-medium"></p>
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('hotspot-form');
-            const plans = document.querySelectorAll('.plan');
-            const planIdInput = document.getElementById('plan-id-input');
-            const phoneNumberInput = document.getElementById('phone-number-input');
-            const messageDiv = document.getElementById('message');
-            const errorDiv = document.getElementById('error');
+        document.addEventListener('DOMContentLoaded', async () => {
+            const plansContainer = document.getElementById('plans-container');
+            const planSelect = document.getElementById('plan-id');
+            const paymentForm = document.getElementById('payment-form');
+            const loadingIndicator = document.getElementById('loading');
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            const submitButton = document.getElementById('submit-button');
 
-            plans.forEach(plan => {
-                plan.addEventListener('click', function() {
-                    plans.forEach(p => p.classList.remove('selected'));
-                    this.classList.add('selected');
-                    planIdInput.value = this.dataset.planId;
-                    errorDiv.style.display = 'none';
-                });
-            });
-
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-                messageDiv.textContent = '';
-                errorDiv.textContent = '';
-                messageDiv.style.display = 'none';
-                errorDiv.style.display = 'none';
-
-                if (!planIdInput.value) {
-                    errorDiv.textContent = 'Please select a plan.';
-                    errorDiv.style.display = 'block';
-                    return;
+            // Function to show messages
+            const showMessage = (text, type = 'success') => {
+                messageText.textContent = text;
+                messageBox.classList.remove('hidden', 'bg-red-100', 'bg-green-100');
+                if (type === 'success') {
+                    messageBox.classList.add('bg-green-100', 'text-green-700');
+                } else {
+                    messageBox.classList.add('bg-red-100', 'text-red-700');
                 }
+            };
 
-                let phoneNumber = phoneNumberInput.value.trim();
-                // Basic validation for a phone number
-                if (!phoneNumber.startsWith('07') || phoneNumber.length !== 10) {
-                    errorDiv.textContent = 'Please enter a valid Ugandan phone number (e.g., 07XXXXXXXX).';
-                    errorDiv.style.display = 'block';
-                    return;
-                }
+            // Fetch and render plans
+            const fetchPlans = async () => {
+                loadingIndicator.classList.remove('hidden');
+                try {
+                    const response = await fetch('/');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch plans');
+                    }
+                    const data = await response.json();
+                    
+                    if (data.plans && data.plans.length > 0) {
+                        plansContainer.innerHTML = ''; // Clear existing content
+                        planSelect.innerHTML = ''; // Clear existing options
+                        data.plans.forEach(plan => {
+                            // Create plan card for display
+                            const planCard = document.createElement('div');
+                            planCard.className = 'plan-card bg-gray-50 p-4 rounded-xl transition duration-300 ease-in-out transform hover:bg-blue-50 cursor-pointer text-left';
+                            planCard.innerHTML = `
+                                <h3 class="text-xl font-semibold text-gray-800">${plan.name}</h3>
+                                <p class="text-gray-600">${plan.duration_minutes} minutes</p>
+                                <p class="text-3xl font-bold text-gray-900 mt-2">UGX ${plan.price}</p>
+                            `;
+                            planCard.onclick = () => {
+                                // Select this plan when the card is clicked
+                                planSelect.value = plan.id;
+                                // Add a visual indicator for the selected card
+                                document.querySelectorAll('.plan-card').forEach(card => card.classList.remove('border-2', 'border-blue-500'));
+                                planCard.classList.add('border-2', 'border-blue-500');
+                            };
+                            plansContainer.appendChild(planCard);
 
-                const selectedPlan = document.querySelector('.plan.selected');
-                const amount = parseInt(selectedPlan.dataset.price);
-
-                const tx_ref = "tx-" + Date.now();
-
-                // Call Flutterwave Checkout
-                FlutterwaveCheckout({
-                    public_key: "FLWPUBK-xxxxxxxxxxxxxxxxxxxxx-X", // REMINDER: Replace with your actual public key
-                    tx_ref: tx_ref,
-                    amount: amount,
-                    currency: "UGX",
-                    payment_options: "card, mobilemoneyuganda",
-                    customer: {
-                        email: "user@example.com", // Placeholder email
-                        phone_number: phoneNumber,
-                        name: phoneNumber
-                    },
-                    customizations: {
-                        title: "WiFi Payment",
-                        description: `Purchase WiFi access for ${selectedPlan.querySelector('strong').textContent}`,
-                        logo: "https://yourdomain.com/logo.png" // REMINDER: Replace with your logo URL
-                    },
-                    callback: function(paymentData) {
-                        // Send transaction_id to Django to verify and generate token
-                        fetch('/api/verify-payment/', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': getCookie('csrftoken'),
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                transaction_id: paymentData.transaction_id,
-                                tx_ref: tx_ref,
-                                phone_number: phoneNumber,
-                                plan_id: planIdInput.value
-                            })
-                        })
-                        .then(res => res.json())
-                        .then(result => {
-                            if (result.token) {
-                                messageDiv.innerHTML = `Success! Your WiFi token is: <strong>${result.token}</strong>. You can now use this token to log in.`;
-                                messageDiv.style.display = 'block';
-                            } else {
-                                errorDiv.textContent = result.error || 'Payment verification failed.';
-                                errorDiv.style.display = 'block';
-                            }
-                        })
-                        .catch(err => {
-                            errorDiv.textContent = 'Error verifying payment.';
-                            errorDiv.style.display = 'block';
-                            console.error('Error verifying payment:', err);
+                            // Create option for the select dropdown
+                            const option = document.createElement('option');
+                            option.value = plan.id;
+                            option.textContent = `${plan.name} (UGX ${plan.price})`;
+                            planSelect.appendChild(option);
                         });
-                    },
-                    onclose: function() {
-                        console.log('Payment popup closed');
+                        // Select the first plan by default
+                        plansContainer.children[0].classList.add('border-2', 'border-blue-500');
+                        planSelect.value = data.plans[0].id;
+                    } else {
+                        plansContainer.innerHTML = '<p class="text-gray-500 col-span-2">No plans available.</p>';
                     }
-                });
+                } catch (error) {
+                    console.error("Error fetching plans:", error);
+                    plansContainer.innerHTML = `<p class="text-red-500 col-span-2">An error occurred. Please try again later.</p>`;
+                } finally {
+                    loadingIndicator.classList.add('hidden');
+                }
+            };
+
+            // Handle form submission
+            paymentForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                messageBox.classList.add('hidden');
+                submitButton.disabled = true;
+                submitButton.textContent = 'Processing...';
+
+                const formData = new FormData(paymentForm);
+                const data = Object.fromEntries(formData.entries());
+
+                // Perform client-side validation
+                if (!data.phone_number || !data.plan_id) {
+                    showMessage('Please enter a phone number and select a plan.', 'error');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Initiate Payment';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/initiate-payment/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        showMessage(`Payment initiated successfully for transaction ID: ${result.transaction_id}. Please approve the request on your phone.`, 'success');
+                    } else {
+                        showMessage(`Error: ${result.error || 'Something went wrong.'}`, 'error');
+                    }
+                } catch (error) {
+                    console.error("Payment initiation failed:", error);
+                    showMessage(`An unexpected error occurred. Please try again.`, 'error');
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Initiate Payment';
+                }
             });
 
-            // A helper function to get the CSRF token from cookies
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.startsWith(name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            }
+            // Initial call to fetch plans
+            fetchPlans();
         });
     </script>
 </body>
