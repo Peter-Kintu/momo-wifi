@@ -3,91 +3,43 @@
 import os
 import routeros_api
 from django.conf import settings
-from .models import Plan
+# The Plan import is moved inside the function to avoid circular dependency
 import logging
 
 logger = logging.getLogger(__name__)
 
-def connect_to_mikrotik():
+def create_mikrotik_user(username, password, plan):
     """
-    Establishes a connection to the MikroTik router using settings from .env.
-    Returns the API object or None on failure.
+    Creates a new user on the MikroTik router.
     """
     try:
-        api = routeros_api.RouterOsApiPool(
+        connection = routeros_api.RouterOsApiPool(
             host=settings.MIKROTIK_HOST,
-            username=settings.MIKROTIK_USER,
+            username=settings.MIKROTIK_USERNAME,
             password=settings.MIKROTIK_PASSWORD,
-            port=8728, # Default API port
-            use_ssl=False
+            plaintext_login=True
         )
-        return api
-    except Exception as e:
-        logger.error(f"Failed to connect to MikroTik: {e}")
-        return None
+        api = connection.get_api()
 
-def create_mikrotik_user(username: str, password: str, plan: Plan):
-    """
-    Creates a new user on the MikroTik hotspot using the provided plan's profile.
-    
-    This function should be called by the admin action when generating a token.
-    The user will be created but initially disabled.
-    """
-    api = connect_to_mikrotik()
-    if not api:
-        return False, "Failed to connect to MikroTik."
+        # Check if the user already exists
+        if api.get_resource('/ip/hotspot/user').get(name=username):
+            return False, f"User {username} already exists."
 
-    try:
-        # Use the plan's mikrotik_profile_name to map the user to the correct profile
-        api_resource = api.get_api().get_resource('/ip/hotspot/user')
-        api_resource.add(
+        # Add the new user
+        api.get_resource('/ip/hotspot/user').add(
             name=username,
             password=password,
-            profile=plan.mikrotik_profile_name,
-            # We add a comment to make it easier to identify the session later
-            comment=f"Token for {username} - {plan.name}",
-            # Set disabled=yes initially. The user will be enabled on token activation.
-            disabled='yes'
+            profile=plan.mikrotik_profile_name
         )
-        api.disconnect()
-        return True, "MikroTik user created successfully."
+        
+        return True, f"User {username} created successfully."
+
+    except routeros_api.exceptions.RouterOsApiError as e:
+        logger.error(f"MikroTik API Error: {e}")
+        return False, f"MikroTik API Error: {e}"
     except Exception as e:
-        logger.error(f"Error creating MikroTik user: {e}")
-        return False, f"Error creating MikroTik user: {e}"
-
-def enable_mikrotik_user(username: str):
-    """
-    Enables a user on the MikroTik hotspot.
-    
-    This function should be called by the `activate_wifi` view.
-    """
-    api = connect_to_mikrotik()
-    if not api:
-        return False, "Failed to connect to MikroTik."
-
-    try:
-        api_resource = api.get_api().get_resource('/ip/hotspot/user')
-        # Find the user by their name (the token)
-        user_info = api_resource.get(name=username)
-
-        if not user_info:
-            api.disconnect()
-            return False, f"MikroTik user '{username}' not found."
-            
-        user_id = user_info[0]['.id']
-
-        # The set command expects keyword arguments.
-        # The key for the ID is 'id', not '.id' as a string literal.
-        api_resource.set(
-            **{'id': user_id, 'disabled': 'no'}
-        )
-        api.disconnect()
-        return True, "MikroTik user enabled successfully."
-    except IndexError:
-        logger.error(f"MikroTik user '{username}' not found.")
-        api.disconnect()
-        return False, f"MikroTik user '{username}' not found."
-    except Exception as e:
-        logger.error(f"Failed to enable MikroTik user '{username}': {e}")
-        api.disconnect()
-        return False, f"Failed to enable MikroTik user: {e}"
+        logger.error(f"An unexpected error occurred: {e}")
+        return False, f"An unexpected error occurred: {e}"
+    finally:
+        if connection:
+            connection.disconnect()
