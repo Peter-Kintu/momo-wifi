@@ -111,6 +111,12 @@ AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY')
 AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME')
 AFRICASTALKING_SENDER_ID = os.environ.get('AFRICASTALKING_SENDER_ID')
 
+# Mikrotik API Credentials
+MIKROTIK_HOST = os.environ.get('MIKROTIK_HOST')
+MIKROTIK_USERNAME = os.environ.get('MIKROTIK_USERNAME')
+MIKROTIK_PASSWORD = os.environ.get('MIKROTIK_PASSWORD')
+
+
 # JAZZMIN Settings for a better design
 JAZZMIN_SETTINGS = {
     "site_title": "MoMo WiFi Admin",
