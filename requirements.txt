@@ -2,3 +2,4 @@ django
 routeros-api
 requests
 python-decouple
+gunicorn
