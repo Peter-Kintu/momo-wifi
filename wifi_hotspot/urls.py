@@ -1,16 +1,13 @@
-"""
-URL configuration for wifi_hotspot project.
-"""
+# wifi_hotspot/wifi_hotspot/urls.py
+
 from django.contrib import admin
 from django.urls import path
-
-# The view functions are now correctly imported.
-from core.views import hotspot_login_page, initiate_payment, airtel_callback
+from core import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', hotspot_login_page, name='hotspot_login_page'),
-    path('api/initiate-payment/', initiate_payment, name='initiate_payment'),
-    # The URL path for the payment callback is also updated for consistency.
-    path('api/airtel/callback/', airtel_callback, name='airtel_callback'),
+    # The main login page for the hotspot
+    path('', views.hotspot_login_page, name='hotspot_login_page'),
+    # API endpoint to handle the token activation form submission
+    path('activate/', views.activate_wifi, name='activate_wifi'),
 ]

@@ -1,96 +1,56 @@
-import uuid
-import json
+# wifi_hotspot/core/views.py
+
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.db import transaction
 from django.utils import timezone
-from .models import Plan, Payment, WifiSession
-from .services import initiate_airtel_payment, create_mikrotik_user
+from .models import WifiSession
+from .mikrotik_api import enable_mikrotik_user
+import logging
 
+logger = logging.getLogger(__name__)
 
-@csrf_exempt
 def hotspot_login_page(request):
     """
-    Renders the main hotspot login page with available plans.
+    Renders the main hotspot login page where users can input their token.
     """
-    plans = Plan.objects.all().order_by('price')
-    return render(request, 'core/hotspot_login.html', {'plans': plans})
-
+    return render(request, 'core/hotspot_login.html')
 
 @csrf_exempt
-def initiate_payment(request):
+def activate_wifi(request):
     """
-    Initiates an Airtel payment request for a selected plan.
-    """
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            phone_number = data.get('phone_number')
-            plan_id = data.get('plan_id')
-
-            if not phone_number or not plan_id:
-                return JsonResponse({"error": "Phone number and plan ID are required."}, status=400)
-
-            plan = Plan.objects.get(pk=plan_id)
-
-            success, message_or_id = initiate_airtel_payment(phone_number, plan)
-
-            if success:
-                return JsonResponse({"message": "Payment initiated successfully.", "transaction_id": message_or_id}, status=202)
-            else:
-                return JsonResponse({"error": message_or_id}, status=500)
-
-        except Plan.DoesNotExist:
-            return JsonResponse({"error": "Invalid plan selected."}, status=404)
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON format in request body."}, status=400)
-        except Exception as e:
-            print(f"Error during payment initiation: {e}")
-            return JsonResponse({"error": "An internal server error occurred."}, status=500)
-
-    return JsonResponse({"error": "Invalid request method. Only POST is allowed."}, status=405)
-
-
-@csrf_exempt
-def airtel_callback(request):
-    """
-    Receives the callback from Airtel after a payment is complete.
+    Handles the POST request to activate a WiFi session with a token.
     """
     if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            
-            # Use the exact structure from the Airtel documentation
-            transaction_id = data.get("data", {}).get("transaction", {}).get("id")
-            status = data.get("data", {}).get("transaction", {}).get("status")
+        token = request.POST.get('token')
 
-            if not transaction_id or not status:
-                return HttpResponse("Invalid callback data", status=400)
+        if not token:
+            return render(request, 'core/invalid_token.html', {'error': 'Token cannot be empty.'})
+
+        session = WifiSession.objects.filter(token=token).first()
+
+        if session:
+            # Check if the session is not already active
+            if session.is_active:
+                return render(request, 'core/invalid_token.html', {'error': 'Token has already been used.'})
+
+            # Check if the session has expired
+            if session.end_time and session.end_time < timezone.now():
+                return render(request, 'core/invalid_token.html', {'error': 'Expired token.'})
 
             try:
-                payment = Payment.objects.get(transaction_id=transaction_id)
-            except Payment.DoesNotExist:
-                return HttpResponse("Payment not found", status=404)
-            
-            # The status should be normalized to lowercase for consistency
-            payment.status = status.lower()
-            payment.save()
+                mikrotik_success, mikrotik_message = enable_mikrotik_user(username=session.token)
 
-            if status.lower() == "successful":
-                # Create a user on the MikroTik router
-                token = create_mikrotik_user(payment.phone_number, payment.plan)
-                if token:
-                    return HttpResponse(f"User created with token: {token}", status=200)
+                if mikrotik_success:
+                    session.is_active = True
+                    session.save()
+                    return render(request, 'core/wifi_active.html', {'session': session})
                 else:
-                    return HttpResponse("Payment successful, but user creation failed.", status=500)
+                    return render(request, 'core/invalid_token.html', {'error': mikrotik_message})
 
-            return HttpResponse(f"Payment status: {status}", status=200)
+            except Exception as e:
+                logger.error(f"Error activating MikroTik user for token {token}: {e}")
+                return render(request, 'core/invalid_token.html', {'error': 'An internal error occurred during activation.'})
+        else:
+            return render(request, 'core/invalid_token.html', {'error': 'Invalid token.'})
 
-        except json.JSONDecodeError:
-            return HttpResponse("Invalid JSON in callback", status=400)
-        except Exception as e:
-            print(f"Airtel callback error: {e}")
-            return HttpResponse("Callback processing failed", status=500)
-
-    return HttpResponse("Method not allowed", status=405)
+    return render(request, 'core/hotspot_login.html')
