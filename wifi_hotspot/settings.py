@@ -114,39 +114,34 @@ MIKROTIK_PASSWORD = os.environ.get('MIKROTIK_PASSWORD')
 
 # =========================================================
 # JAZZMIN ADMIN PANEL CONFIGURATION
-# Add this section to the bottom of your settings.py file
 # =========================================================
 
 JAZZMIN_SETTINGS = {
+    # TITLE AND BRANDING
     "site_title": "WiFi Hotspot Admin",
     "site_header": "WiFi Hotspot",
     "site_brand": "Hotspot",
-    "site_logo": "img/logo.png", # You can put a logo here
+    "site_logo": None,
     "login_logo": None,
     "login_logo_dark": None,
-    "site_logo_classes": "img-circle",
     "site_icon": None,
     "welcome_sign": "Welcome to the WiFi Hotspot Admin Panel",
-    "search_model_text": "Search",
+
+    # UI/VISUAL STYLES
     "changeform_format": "horizontal",
     "changeform_format_overrides": {"core.plan": "vertical", "core.wifisession": "vertical"},
-
-    # UI Tweaks
     "theme": "united", # Examples: "darkly", "cosmo", "united", "minty"
-    "navbar_small_text": False,
-    "footer_small_text": False,
-    "body_small_text": False,
-    "brand_small_text": False,
-    "brand_colour": False,
-    "accent": "accent-primary",
-    "navbar": "navbar-white navbar-light",
-    "no_navbar_reference": False,
-    "sidebar_nav_small_text": False,
-    "sidebar_nav_child_indent": False,
-    "sidebar_nav_compact_style": False,
-    "sidebar_nav_legacy_style": True,
-    "sidebar_nav_flat_style": True,
-    "sidebar_nav_fixed_style": True,
+    "navbar": "navbar-dark navbar-primary",
+    "accent": "accent-info",
+    "topbar_links": True,
+
+    # MENU AND NAVIGATION
+    "show_sidebar": True,
+    "sidebar_fixed": True,
+    "sidebar_nav_child_indent": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "order_with_respect_to": ["core", "auth"],
     "menu": [
         {
             "app": "core",
@@ -157,6 +152,23 @@ JAZZMIN_SETTINGS = {
                 {"model": "core.WifiSession"},
             ]
         },
-        {"app": "auth"},
+        {"app": "auth", "name": "Users & Permissions"},
     ]
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-primary",
+    "accent": "accent-primary",
+    "navbar": "navbar-primary navbar-dark",
+    "no_navbar_reference": False,
+    "sidebar_nav_small_text": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": True,
+    "sidebar_nav_flat_style": True,
+    "sidebar_nav_fixed_style": True,
 }
