@@ -11,7 +11,7 @@ from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
-def hotspot_login_page(request):
+def hotspot_login_page(request, company_id):
     """
     Renders the main hotspot login page where users can input their token.
     """
