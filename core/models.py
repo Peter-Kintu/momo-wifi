@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 class Company(models.Model):
     """
     Represents the company information to be displayed on the hotspot page.
+    Using a UUID as the primary key to match the URL pattern.
     """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
 
     def __str__(self):
@@ -49,57 +51,56 @@ class WifiSession(models.Model):
 
     @staticmethod
     def generate_token():
+        # A simple token generator
         return str(uuid.uuid4())[:8].upper()
-
+    
     def save(self, *args, **kwargs):
-        # We don't want to create a MikroTik user on every save,
-        # so we'll use a signal to handle creation only when it's new.
+        # This will be triggered on a new object creation
+        if not self.pk:
+            # Generate token and end_time before saving
+            self.token = self.generate_token()
+            self.end_time = timezone.now() + timezone.timedelta(minutes=self.plan.duration_minutes)
+
+            # Create the user on the MikroTik router
+            mikrotik_success, mikrotik_message = create_mikrotik_user(
+                username=self.token,
+                password=self.token,
+                plan=self.plan
+            )
+
+            if mikrotik_success:
+                # Send the token via SMS using Africa's Talking API
+                message = f"Your WiFi token is: {self.token}. It is valid for {self.plan.duration_minutes // 60} hours. Use it to login to the hotspot."
+                
+                # This part is commented out for now as it needs real API keys
+                # payload = {
+                #     'username': settings.AFRICASTALKING_USERNAME,
+                #     'to': self.phone_number,
+                #     'message': message,
+                # }
+                # headers = {'Accept': 'application/json', 'apiKey': settings.AFRICASTALKING_API_KEY}
+                
+                # try:
+                #     requests.post('https://api.africastalking.com/version1/messaging', data=payload, headers=headers)
+                #     logger.info(f"Token sent to {self.phone_number} using Africa's Talking.")
+                # except requests.exceptions.RequestException as e:
+                #     logger.error(f"Failed to send SMS to {self.phone_number}: {e}")
+
+            else:
+                logger.error(f"Failed to create MikroTik user for {self.phone_number}: {mikrotik_message}")
+                raise Exception(mikrotik_message)
+
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Session for {self.phone_number} ({self.token})"
-
+        return f"Session for {self.phone_number}"
 
 @receiver(post_save, sender=WifiSession)
 def create_mikrotik_user_on_save(sender, instance, created, **kwargs):
     """
-    Signal handler to create a MikroTik user after a new WifiSession is created.
+    Signal receiver to handle MikroTik user creation after a WifiSession is saved.
     """
     if created and not instance.token:
-        # 1. Generate the token and calculate end time
-        instance.token = WifiSession.generate_token()
-        instance.end_time = timezone.now() + timezone.timedelta(minutes=instance.plan.duration_minutes)
-
-        # 2. Create the user on the MikroTik router
-        mikrotik_success, mikrotik_message = create_mikrotik_user(
-            username=instance.token,
-            password=instance.token,  # Using the token as the password for simplicity
-            plan=instance.plan
-        )
-
-        if mikrotik_success:
-            # 3. Send the token via SMS using Africa's Talking API
-            message = f"Your WiFi token is: {instance.token}. It is valid for {instance.plan.duration_minutes // 60} hours. Use it to login to the hotspot."
-            
-            # This part is commented out for now as it needs real API keys
-            # payload = {
-            #     'username': settings.AFRICASTALKING_USERNAME,
-            #     'to': instance.phone_number,
-            #     'message': message,
-            # }
-            # headers = {'Accept': 'application/json', 'apiKey': settings.AFRICASTALKING_API_KEY}
-            
-            # try:
-            #     requests.post('https://api.africastalking.com/version1/messaging', data=payload, headers=headers)
-            #     logger.info(f"Token sent to {instance.phone_number} using Africa's Talking.")
-            # except requests.exceptions.RequestException as e:
-            #     logger.error(f"Failed to send SMS to {instance.phone_number}: {e}")
-
-            # Save the instance again to persist the new token and end_time
-            instance.save(update_fields=['token', 'end_time'])
-
-        else:
-            logger.error(f"Failed to create MikroTik user for {instance.phone_number}: {mikrotik_message}")
-            # Consider rolling back or handling the error gracefully
-            # For now, let's just delete the session since the MikroTik user failed
-            instance.delete()
+        # Note: This block is now redundant because the save method handles it.
+        # This is left here as a placeholder for a different logic flow if needed.
+        pass
