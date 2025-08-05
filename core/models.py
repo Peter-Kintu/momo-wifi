@@ -3,7 +3,7 @@
 import uuid
 from django.db import models
 from django.utils import timezone
-from .mikrotik_api import create_mikrotik_user
+from .mikrotik_api import create_mikrotik_user, enable_mikrotik_user
 import requests
 from django.conf import settings
 import logging
@@ -38,17 +38,18 @@ class WifiSession(models.Model):
 
     @staticmethod
     def generate_token():
-        return str(uuid.uuid4())[:8].upper()
+        """Generates a random 6-character alphanumeric token."""
+        return str(uuid.uuid4())[:6].upper()
 
     def save(self, *args, **kwargs):
-        """
-        Overrides the save method to automatically generate a token,
-        create a MikroTik user, and send an SMS on creation.
-        """
-        if not self.pk and not self.token:
+        # Only generate a token if one doesn't exist.
+        if not self.token:
             self.token = self.generate_token()
             self.end_time = timezone.now() + timezone.timedelta(minutes=self.plan.duration_minutes)
 
+            # This is where the MikroTik user is created and SMS is sent.
+            # This logic might be better placed in a separate admin action or signal.
+            # For now, we'll keep it here as per the original code's intention.
             mikrotik_success, mikrotik_message = create_mikrotik_user(
                 username=self.token,
                 password=self.token,
@@ -56,8 +57,8 @@ class WifiSession(models.Model):
             )
 
             if mikrotik_success:
-                # Send the token via SMS using Africa's Talking API
-                message = f"Your WiFi token is: {self.token}. It is valid for {self.plan.duration_minutes // 60} hours. Use it to login to the hotspot."
+                message = (f"Your WiFi token is: {self.token}. It is valid for "
+                           f"{self.plan.duration_minutes // 60} hours. Use it to login to the hotspot.")
                 
                 payload = {
                     'username': settings.AFRICASTALKING_USERNAME,
@@ -71,12 +72,13 @@ class WifiSession(models.Model):
                     logger.info(f"Token sent to {self.phone_number} using Africa's Talking.")
                 except requests.exceptions.RequestException as e:
                     logger.error(f"Failed to send SMS to {self.phone_number}: {e}")
-
             else:
                 logger.error(f"Failed to create MikroTik user for {self.phone_number}: {mikrotik_message}")
+                # You might want to raise a more specific exception here.
                 raise Exception(mikrotik_message)
 
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Session for {self.phone_number} ({self.token})"
+

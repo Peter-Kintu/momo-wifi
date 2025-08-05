@@ -3,41 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hotspot Login</title>
+    <title>{{ company.name }} Hotspot Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #e2e8f0; /* bg-gray-200 */
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md text-center">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Login with Token</h1>
+        <p class="text-gray-600 mb-6">Enter your token to activate your WiFi session.</p>
 
-    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm mb-4">
-        <h1 class="text-2xl font-bold text-center text-gray-800 mb-4">Hotspot Login</h1>
-        <p class="text-gray-600 text-center mb-6">Enter your token to activate your WiFi session.</p>
+        {% if error %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <span class="block sm:inline">{{ error }}</span>
+        </div>
+        {% endif %}
 
-        <form action="{% url 'activate_wifi' %}" method="post" class="space-y-4">
+        <form action="{% url 'activate_wifi' company.id %}" method="post" class="space-y-4">
             {% csrf_token %}
-            <label for="token" class="sr-only">Enter Token</label>
-            <input type="text" id="token" name="token" placeholder="Enter Token" required
-                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-            <button type="submit"
-                    class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+            <input type="text" name="token" placeholder="Enter your token" class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-indigo-500 transition-colors duration-200" required>
+            <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200">
                 Activate WiFi
             </button>
         </form>
+
+        <p class="mt-6 text-gray-500">
+            Don't have a token? <a href="{% url 'hotspot_landing_page' company.id %}" class="text-indigo-600 hover:underline">Purchase a plan here</a>.
+        </p>
     </div>
-
-    <a href="{% url 'admin:index' %}"
-       class="w-full max-w-sm text-center bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors mt-2">
-        Go to Admin Panel
-    </a>
-
 </body>
 </html>

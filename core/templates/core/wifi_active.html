@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Activated</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md text-center">
+        <h1 class="text-3xl font-bold text-green-600 mb-2">Success!</h1>
+        <p class="text-lg text-gray-800 mb-6">Your WiFi session has been activated.</p>
+        <div class="bg-green-50 rounded-lg p-6 mb-6 text-left">
+            <p class="text-gray-700 font-semibold">Your Token:</p>
+            <p class="text-xl font-bold text-green-700 break-words">{{ session.token }}</p>
+            <p class="mt-4 text-gray-700 font-semibold">Valid until:</p>
+            <p class="text-lg text-green-700">{{ session.end_time|date:"F j, Y, P" }}</p>
+        </div>
+        <p class="text-gray-600">You are now connected to the internet.</p>
+    </div>
+</body>
+</html>

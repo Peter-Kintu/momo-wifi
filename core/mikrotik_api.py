@@ -7,74 +7,88 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def create_mikrotik_user(username, password, plan):
+def connect_to_mikrotik(company):
     """
-    Creates a new user on the MikroTik router.
+    Establishes a connection to the MikroTik router for a specific company.
+    Returns the API object or None on failure.
     """
     try:
-        connection = routeros_api.RouterOsApiPool(
-            host=settings.MIKROTIK_HOST,
-            username=settings.MIKROTIK_USERNAME,
-            password=settings.MIKROTIK_PASSWORD,
-            plaintext_login=True
+        api = routeros_api.RouterOsApiPool(
+            host=company.mikrotik_host,
+            username=company.mikrotik_username,
+            password=company.mikrotik_password,
+            port=8728, # Default API port
+            use_ssl=False
         )
-        api = connection.get_api()
+        return api
+    except Exception as e:
+        logger.error(f"Failed to connect to MikroTik for company '{company.name}': {e}")
+        return None
 
+def create_mikrotik_user(company, username, password, plan):
+    """
+    Creates a new user on the MikroTik hotspot using the provided plan's profile
+    for a specific company.
+    
+    The user will be created but initially disabled.
+    """
+    api = connect_to_mikrotik(company)
+    if not api:
+        return False, "Failed to connect to MikroTik."
+
+    try:
+        api_resource = api.get_api().get_resource('/ip/hotspot/user')
+        
         # Check if the user already exists
-        if api.get_resource('/ip/hotspot/user').get(name=username):
-            return False, f"User {username} already exists."
+        if api_resource.get(name=username):
+            api.disconnect()
+            return False, f"User '{username}' already exists on MikroTik for company '{company.name}'."
 
-        # Add the new user with its profile
-        api.get_resource('/ip/hotspot/user').add(
+        # Use the plan's mikrotik_profile_name to assign the profile
+        api_resource.add(
             name=username,
             password=password,
-            profile=plan.mikrotik_profile_name
+            profile=plan.mikrotik_profile_name,
+            # Set the user as disabled initially
+            disabled='yes'
         )
-        
-        return True, f"User {username} created successfully."
-
-    except routeros_api.exceptions.RouterOsApiError as e:
-        logger.error(f"MikroTik API Error: {e}")
-        return False, f"MikroTik API Error: {e}"
+        api.disconnect()
+        return True, "MikroTik user created successfully."
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        return False, f"An unexpected error occurred: {e}"
-    finally:
-        if connection:
-            connection.disconnect()
+        logger.error(f"Error creating MikroTik user for company '{company.name}': {e}")
+        return False, f"Error creating MikroTik user: {e}"
 
-def enable_mikrotik_user(username):
+def enable_mikrotik_user(company, username: str):
     """
-    Enables an existing user on the MikroTik router.
+    Enables a user on the MikroTik hotspot for a specific company.
     """
+    api = connect_to_mikrotik(company)
+    if not api:
+        return False, "Failed to connect to MikroTik."
+
     try:
-        connection = routeros_api.RouterOsApiPool(
-            host=settings.MIKROTIK_HOST,
-            username=settings.MIKROTIK_USERNAME,
-            password=settings.MIKROTIK_PASSWORD,
-            plaintext_login=True
+        api_resource = api.get_api().get_resource('/ip/hotspot/user')
+        # Find the user by their name (the token)
+        user_info = api_resource.get(name=username)
+
+        if not user_info:
+            api.disconnect()
+            return False, f"MikroTik user '{username}' not found for company '{company.name}'."
+            
+        user_id = user_info[0]['.id']
+
+        # The set command expects keyword arguments.
+        # The key for the ID is 'id', not '.id' as a string literal.
+        api_resource.set(
+            **{'id': user_id, 'disabled': 'no'}
         )
-        api = connection.get_api()
-
-        # Find the user by name
-        user = api.get_resource('/ip/hotspot/user').get(name=username)
-        if not user:
-            return False, f"User {username} not found."
-
-        # Enable the user
-        api.get_resource('/ip/hotspot/user').set(
-            id=user[0]['.id'],
-            disabled='no'
-        )
-        
-        return True, f"User {username} enabled successfully."
-
-    except routeros_api.exceptions.RouterOsApiError as e:
-        logger.error(f"MikroTik API Error: {e}")
-        return False, f"MikroTik API Error: {e}"
+        api.disconnect()
+        return True, "MikroTik user enabled successfully."
+    except IndexError:
+        logger.error(f"MikroTik user '{username}' not found for company '{company.name}'.")
+        api.disconnect()
+        return False, f"MikroTik user '{username}' not found."
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        return False, f"An unexpected error occurred: {e}"
-    finally:
-        if connection:
-            connection.disconnect()
+        logger.error(f"Error enabling MikroTik user for company '{company.name}': {e}")
+        api.disconnect()
+        return False, f"Error enabling MikroTik user: {e}"
