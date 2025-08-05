@@ -1,36 +1,27 @@
 # wifi_hotspot/core/views.py
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from .models import WifiSession, Plan, Company
+from .models import WifiSession, Plan
 from .mikrotik_api import enable_mikrotik_user
 import logging
 
 logger = logging.getLogger(__name__)
 
-def hotspot_landing_page(request, company_id):
+def hotspot_login_page(request):
     """
-    Renders the main hotspot landing page where users can select a plan.
+    Renders the main hotspot login page where users can input their token.
     """
-    company = get_object_or_404(Company, id=company_id)
-    plans = Plan.objects.all()
-    return render(request, 'core/hotspot_landing_page.html', {
-        'company': company,
-        'plans': plans
-    })
-
-def hotspot_login_page(request, company_id):
-    """
-    Renders the login page where users can input their token.
-    """
-    company = get_object_or_404(Company, id=company_id)
-    return render(request, 'core/hotspot_login.html', {
-        'company': company
-    })
+    # Temporary context to prevent template rendering errors.
+    # A proper Company model should be created and used here.
+    context = {
+        'company': {'name': 'Your WiFi Hotspot'}
+    }
+    return render(request, 'core/hotspot_login.html', context)
 
 @csrf_exempt
-def activate_wifi(request, company_id):
+def activate_wifi(request):
     """
     Handles the POST request to activate a WiFi session with a token.
     """
