@@ -1,10 +1,10 @@
 # wifi_hotspot/core/views.py
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from .models import WifiSession, Plan, Company
-from .mikrotik_api import enable_mikrotik_user, create_mikrotik_user
+from .mikrotik_api import enable_mikrotik_user
 import logging
 from django.http import JsonResponse
 from django.db import transaction
@@ -14,16 +14,22 @@ logger = logging.getLogger(__name__)
 def hotspot_login_page(request, company_id):
     """
     Renders the main hotspot login page where users can input their token.
+    The company is now retrieved based on the URL's company_id.
     """
-    # Fetch all available plans and company info
+    # Use get_object_or_404 as a shortcut to get the company or raise a 404 Http404 exception.
+    company = get_object_or_404(Company, id=company_id)
+    
+    # Fetch all available plans for the company. In a multi-tenant setup, you might want to filter plans by company.
+    # For now, we assume all plans are available to all companies.
     plans = Plan.objects.all()
-    company, created = Company.objects.get_or_create(id=1, defaults={'name': 'My Hotspot'})
+
     return render(request, 'core/hotspot_login.html', {'plans': plans, 'company': company})
 
 @csrf_exempt
-def activate_wifi(request):
+def activate_wifi(request, company_id):
     """
     Handles the POST request to activate a WiFi session with a token.
+    This view now also receives the company_id from the URL.
     """
     if request.method == 'POST':
         token = request.POST.get('token')
@@ -57,29 +63,27 @@ def activate_wifi(request):
                 return render(request, 'core/invalid_token.html', {'error': 'An internal error occurred during activation.'})
         else:
             return render(request, 'core/invalid_token.html', {'error': 'Invalid token.'})
-
-    return render(request, 'core/invalid_token.html', {'error': 'Invalid request method.'})
-
+            
+    return render(request, 'core/hotspot_login.html')
 
 @csrf_exempt
-def initiate_payment_view(request):
+def initiate_payment_view(request, company_id):
     """
-    Handles the payment initiation and subsequent MikroTik user creation.
-    This view is a placeholder for a real payment gateway integration.
+    Handles the payment initiation process for a selected plan.
     """
     if request.method == 'POST':
         try:
-            # This is a simplified example. In a real-world scenario, you would
-            # parse the JSON body and validate the data.
-            plan_id = request.POST.get('plan_id')
-            phone_number = request.POST.get('phone_number')
+            # Get data from the JSON body
+            data = json.loads(request.body)
+            plan_id = data.get('plan_id')
+            phone_number = data.get('phone_number')
 
             if not plan_id or not phone_number:
                 return JsonResponse({'message': 'Missing plan or phone number.'}, status=400)
 
             # Look up the plan
             plan = Plan.objects.get(id=plan_id)
-
+            
             # In a real payment gateway integration, you'd make an API call here.
             # For this example, we'll assume the payment is successful.
             logger.info(f"Simulating payment for phone: {phone_number}, plan: {plan.name}")
@@ -93,8 +97,8 @@ def initiate_payment_view(request):
                     is_active=False,
                     # We will set the token and end_time later, or use the post_save signal
                 )
-                session.save()  # This will trigger the post_save signal which creates the MikroTik user
-
+                session.save() # This will trigger the post_save signal which creates the MikroTik user
+            
             return JsonResponse({'message': 'Payment successful. You will receive an SMS with your token shortly.'})
 
         except Plan.DoesNotExist:
