@@ -26,37 +26,14 @@ def generate_and_send_token(modeladmin, request, queryset):
             continue
 
         try:
-            # 1. Generate the token and calculate end time
-            session.token = WifiSession.generate_token()
-            session.end_time = timezone.now() + timezone.timedelta(minutes=session.plan.duration_minutes)
+            # 1. Generate the token and calculate end time. The save() method handles this.
+            session.save()
 
-            # 2. Create the user on the MikroTik router
-            mikrotik_success, mikrotik_message = create_mikrotik_user(
-                username=session.token,
-                password=session.token,  # Using the token as the password for simplicity
-                plan=session.plan
-            )
-
-            if mikrotik_success:
-                # 3. Save the session in the database
-                session.save()
-
-                # 4. Send the token via SMS (placeholder)
-                # Note: You'll need to configure Africa's Talking API credentials
-                message = f"Your WiFi token is: {session.token}. It is valid for {session.plan.duration_minutes // 60} hours. Use it to login to the hotspot."
-                payload = {
-                    'to': session.phone_number,
-                    'message': message,
-                    'apiKey': 'your_api_key',
-                    'username': 'your_username'
-                }
-                # requests.post('https://api.africastalking.com/version1/messaging', data=payload)
-                
-                success_count += 1
-                messages.success(request, f"Token generated and (simulated) sent to {session.phone_number}.")
-            else:
-                failure_count += 1
-                messages.error(request, f"Failed to create MikroTik user for {session.phone_number}: {mikrotik_message}")
+            # 2. Since the save() method now handles MikroTik user creation and SMS sending,
+            #    we only need to check if it was successful. This is handled by the
+            #    exception from the save() method.
+            success_count += 1
+            messages.success(request, f"Token generated and sent to {session.phone_number}.")
 
         except Exception as e:
             failure_count += 1
@@ -69,7 +46,14 @@ def generate_and_send_token(modeladmin, request, queryset):
         messages.error(request, f"Failed to process {failure_count} sessions.")
 
 
+class PlanAdmin(admin.ModelAdmin):
+    """Admin view for the Plan model."""
+    list_display = ('name', 'price', 'duration_minutes', 'mikrotik_profile_name')
+    search_fields = ('name',)
+
+
 class WifiSessionAdmin(admin.ModelAdmin):
+    """Admin view for the WifiSession model."""
     list_display = ('phone_number', 'token', 'plan', 'end_time', 'is_active')
     list_filter = ('is_active', 'plan')
     search_fields = ('phone_number', 'token')
@@ -78,8 +62,11 @@ class WifiSessionAdmin(admin.ModelAdmin):
     # These fields will be displayed in the form
     fields = ('phone_number', 'plan')
     
-    # These fields will not be editable by the user
+    # Exclude these fields from being editable in the admin
     readonly_fields = ('token', 'end_time', 'is_active')
 
+
+# Register your models with the custom admin classes
+admin.site.register(Plan, PlanAdmin)
 admin.site.register(WifiSession, WifiSessionAdmin)
-admin.site.register(Plan)
+
