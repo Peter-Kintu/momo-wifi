@@ -1,6 +1,6 @@
 # wifi_hotspot/core/views.py
 
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from .models import WifiSession, Plan
@@ -12,13 +12,27 @@ logger = logging.getLogger(__name__)
 def hotspot_login_page(request):
     """
     Renders the main hotspot login page where users can input their token.
+    This is for the simple token-based login.
     """
-    # Temporary context to prevent template rendering errors.
-    # A proper Company model should be created and used here.
-    context = {
-        'company': {'name': 'Your WiFi Hotspot'}
-    }
-    return render(request, 'core/hotspot_login.html', context)
+    return render(request, 'core/hotspot_login.html')
+
+def hotspot_landing_page(request, company_id):
+    """
+    Renders the hotspot landing page for a specific company, showing available plans.
+    This view fetches all plans from the database to display them to the user.
+    Note: The 'company' object is a placeholder. You would need to implement
+    a Company model and fetch it by the company_id in a real application.
+    """
+    # In a real-world scenario, you would fetch the company object here.
+    # e.g., company = get_object_or_404(Company, id=company_id)
+    # For now, we'll use a placeholder.
+    company = {'name': 'Example Hotspot Company'}
+
+    plans = Plan.objects.all()
+    return render(request, 'core/hotspot_landing_page.html', {
+        'company': company,
+        'plans': plans
+    })
 
 @csrf_exempt
 def activate_wifi(request):
