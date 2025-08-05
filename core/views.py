@@ -14,14 +14,13 @@ logger = logging.getLogger(__name__)
 
 def hotspot_login_page(request, company_id):
     """
-    Renders the main hotspot login page where users can input their token.
-    The company is now retrieved based on the URL's company_id.
+    Renders the main hotspot login page, creating a default company if one doesn't exist.
     """
-    # Use get_object_or_404 as a shortcut to get the company or raise a 404 Http404 exception.
-    company = get_object_or_404(Company, id=company_id)
+    # Use get_or_create to automatically create a company if it doesn't exist.
+    # This prevents the 404 error on a fresh database.
+    company, created = Company.objects.get_or_create(id=company_id, defaults={'name': 'My Hotspot'})
     
-    # Fetch all available plans for the company. In a multi-tenant setup, you might want to filter plans by company.
-    # For now, we assume all plans are available to all companies.
+    # Fetch all available plans
     plans = Plan.objects.all()
 
     return render(request, 'core/hotspot_login.html', {'plans': plans, 'company': company})
