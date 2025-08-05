@@ -13,90 +13,56 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
     <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md text-center">
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome to {{ company.name }} Hotspot</h1>
-        <p class="text-gray-600 mb-6">Select a plan to get connected.</p>
+        <p class="text-gray-600 mb-6">Select a plan to get connected or enter a token below.</p>
 
         <div class="space-y-4 mb-6" id="plans-container">
             {% for plan in plans %}
             <label for="plan-{{ plan.id }}" class="block p-4 border rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors duration-200">
-                <input type="radio" id="plan-{{ plan.id }}" name="plan" value="{{ plan.id }}" class="hidden peer" {% if forloop.first %}checked{% endif %}>
+                <input type="radio" id="plan-{{ plan.id }}" name="plan" value="{{ plan.id }}" class="hidden peer">
                 <div class="flex items-center justify-between">
-                    <div class="text-left">
-                        <span class="font-semibold text-xl text-gray-900 peer-checked:text-indigo-600">{{ plan.name }}</span>
-                        <p class="text-sm text-gray-500">{{ plan.duration_minutes }} minutes</p>
+                    <div class="flex flex-col text-left">
+                        <span class="text-lg font-semibold text-gray-800">{{ plan.name }}</span>
+                        <span class="text-sm text-gray-500">{{ plan.duration_minutes }} Minutes</span>
                     </div>
-                    <span class="font-bold text-2xl text-gray-900 peer-checked:text-indigo-600">UGX {{ plan.price }}</span>
+                    <span class="text-xl font-bold text-indigo-600">{{ plan.price }} UGX</span>
                 </div>
             </label>
             {% endfor %}
         </div>
 
-        <form id="payment-form" class="space-y-4">
-            <input type="tel" id="phone-number" placeholder="Enter phone number (e.g., 77...)" class="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-indigo-500 transition-colors duration-200" required>
-            <button type="submit" id="pay-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200">
+        <form action="{% url 'initiate_payment_view' company_id=company.id %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" id="selected-plan-id" name="plan_id">
+            <input type="tel" id="phone-number" name="phone_number" class="w-full p-3 mb-4 text-center border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none" placeholder="Enter your phone number">
+            <button type="submit" id="pay-button" class="w-full px-6 py-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200">
                 Pay and Connect
             </button>
         </form>
-        
-        <div id="status-message" class="mt-4 text-sm font-medium"></div>
 
-        <p class="mt-6 text-gray-500">
-            Already have a token? <a href="{% url 'hotspot_login_page' company.id %}" class="text-indigo-600 hover:underline">Log in here</a>.
+        <p class="mt-6 text-center text-sm text-gray-500">
+            Have a token?
+            <a href="{% url 'hotspot_login_page' company_id=company.id %}" class="font-medium text-indigo-600 hover:text-indigo-500">
+                Click here to login
+            </a>
         </p>
+
+        <div id="status-message" class="mt-4"></div>
     </div>
-
     <script>
+        const planContainer = document.getElementById('plans-container');
+        const selectedPlanInput = document.getElementById('selected-plan-id');
+        const planRadios = document.querySelectorAll('input[name="plan"]');
         const payButton = document.getElementById('pay-button');
-        const statusMessage = document.getElementById('status-message');
-        const paymentForm = document.getElementById('payment-form');
 
-        paymentForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const selectedPlan = document.querySelector('input[name="plan"]:checked');
-            const phoneNumber = document.getElementById('phone-number').value;
-
-            if (!selectedPlan || !phoneNumber) {
-                statusMessage.textContent = 'Please select a plan and enter your phone number.';
-                statusMessage.className = 'mt-4 text-sm font-medium text-red-500';
-                return;
-            }
-
-            payButton.textContent = 'Processing...';
-            payButton.disabled = true;
-            statusMessage.textContent = 'Awaiting payment confirmation on your phone...';
-            statusMessage.className = 'mt-4 text-sm font-medium text-blue-500';
-
-            try {
-                const response = await fetch("{% url 'initiate_payment_view' company.id %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        // Note: CSRF token is not included here as the view is marked with @csrf_exempt
-                        // In a production setup, you would include the token for security.
-                    },
-                    body: JSON.stringify({
-                        plan_id: selectedPlan.value,
-                        phone_number: phoneNumber
-                    })
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    statusMessage.textContent = result.message;
-                    statusMessage.className = 'mt-4 text-sm font-medium text-green-500';
-                } else {
-                    // Handle non-OK responses gracefully, as the body may not be JSON
-                    statusMessage.textContent = `Error: ${response.statusText}. Please try again.`;
-                    statusMessage.className = 'mt-4 text-sm font-medium text-red-500';
+        planContainer.addEventListener('click', (event) => {
+            const label = event.target.closest('label');
+            if (label) {
+                const radio = label.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                    selectedPlanInput.value = radio.value;
+                    payButton.disabled = false;
                 }
-
-            } catch (error) {
-                console.error('Error:', error);
-                statusMessage.textContent = 'An unexpected error occurred. Please try again.';
-                statusMessage.className = 'mt-4 text-sm font-medium text-red-500';
-            } finally {
-                payButton.textContent = 'Pay and Connect';
-                payButton.disabled = false;
             }
         });
     </script>
