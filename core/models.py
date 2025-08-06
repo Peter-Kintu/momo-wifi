@@ -46,7 +46,7 @@ class Plan(models.Model):
     Represents a WiFi access plan with a specific duration and price,
     associated with a specific company.
     """
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True) # Temporarily nullable
     name = models.CharField(max_length=50)
     price = models.IntegerField()  # UGX
     duration_minutes = models.IntegerField()
@@ -56,7 +56,7 @@ class Plan(models.Model):
     )
 
     def __str__(self):
-        return f"{self.name} ({self.price} UGX) for {self.company.name}"
+        return f"{self.name} ({self.price} UGX) for {self.company.name if self.company else 'N/A'}"
 
 
 class WifiSession(models.Model):
@@ -64,7 +64,7 @@ class WifiSession(models.Model):
     Represents an active or pending WiFi session tied to a token,
     associated with a specific company.
     """
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True) # Temporarily nullable
     phone_number = models.CharField(max_length=15)
     token = models.CharField(max_length=10, unique=True, blank=True, null=True)
     plan = models.ForeignKey(Plan, on_delete=models.CASCADE)
