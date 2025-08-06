@@ -6,15 +6,13 @@ from django.shortcuts import redirect
 from django.conf.urls.static import static
 from django.conf import settings
 from core import views
-from django.http import HttpRequest, HttpResponse
+import uuid # Import the uuid module
 
-def root_redirect_view(request: HttpRequest) -> HttpResponse:
+def root_redirect_view(request):
     """
     Redirects the root URL to a placeholder company page to demonstrate the multi-tenancy structure.
-    Replace '00000000-0000-0000-0000-000000000000' with a real company's UUID.
     """
-    # Use a dummy UUID for now. In a real-world scenario, you would
-    # resolve the company_id dynamically.
+    # Ensure the dummy_company_id is a valid UUID string
     dummy_company_id = '00000000-0000-0000-0000-000000000000'
     return redirect('hotspot_login_page', company_id=dummy_company_id)
 
@@ -31,3 +29,7 @@ urlpatterns = [
     # The new URL for initiating payment
     path('<uuid:company_id>/initiate-payment/', views.initiate_payment_view, name='initiate_payment'),
 ]
+
+# Serve static files in development
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
