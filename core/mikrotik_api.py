@@ -18,7 +18,7 @@ def connect_to_mikrotik(company):
             username=company.mikrotik_username,
             password=company.mikrotik_password,
             port=8728, # Default API port
-            use_ssl=False
+            plaintext_login=True # Set to True if not using SSL
         )
         return api
     except Exception as e:
@@ -44,12 +44,12 @@ def create_mikrotik_user(company, username, password, plan):
             api.disconnect()
             return False, f"User '{username}' already exists on MikroTik for company '{company.name}'."
 
-        # Use the plan's mikrotik_profile_name to assign the profile
+        # Add the new user with its profile
         api_resource.add(
             name=username,
             password=password,
             profile=plan.mikrotik_profile_name,
-            # Set the user as disabled initially
+            # Set the user as disabled initially, it will be enabled on token activation
             disabled='yes'
         )
         api.disconnect()
@@ -77,8 +77,7 @@ def enable_mikrotik_user(company, username: str):
             
         user_id = user_info[0]['.id']
 
-        # The set command expects keyword arguments.
-        # The key for the ID is 'id', not '.id' as a string literal.
+        # Enable the user
         api_resource.set(
             **{'id': user_id, 'disabled': 'no'}
         )
@@ -92,3 +91,4 @@ def enable_mikrotik_user(company, username: str):
         logger.error(f"Error enabling MikroTik user for company '{company.name}': {e}")
         api.disconnect()
         return False, f"Error enabling MikroTik user: {e}"
+
