@@ -1,3 +1,5 @@
+<!-- wifi_hotspot/core/templates/core/hotspot_login.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,29 +7,127 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ company.name }} Hotspot Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md text-center">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Login with Token</h1>
-        <p class="text-gray-600 mb-6">Enter your unique token to get connected.</p>
+<body class="bg-gray-100 p-4 min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-md bg-white rounded-xl shadow-lg p-6 md:p-8">
+        <h1 class="text-3xl font-bold text-gray-800 text-center mb-2">{{ company.name }}</h1>
+        <p class="text-gray-500 text-center mb-8">Welcome! Connect to our WiFi.</p>
 
-        <form action="{% url 'activate_wifi' company_id=company.id %}" method="post">
-            {% csrf_token %}
-            <input type="text" name="token" class="w-full p-3 mb-4 text-center border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none" placeholder="Enter your token">
-            <button type="submit" class="w-full px-6 py-3 text-lg font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors duration-200">
-                Activate WiFi
-            </button>
-        </form>
+        <div id="message-box" class="hidden mb-4 p-3 rounded-lg text-center"></div>
 
-        {% if error %}
-        <div class="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-            {{ error }}
+        <!-- Payment Section -->
+        <div id="payment-section" class="mb-8">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Purchase a Plan</h2>
+            <form id="payment-form" action="{% url 'payment_callback_view' company_id=company.id %}" method="post" class="space-y-4">
+                <div class="flex flex-col">
+                    <label for="phone_number" class="text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                    <input type="tel" id="phone_number" name="phone_number" placeholder="e.g., 0712345678" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label for="plan_id" class="text-sm font-medium text-gray-700 mb-1">Select a Plan</label>
+                    <select id="plan_id" name="plan_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        {% for plan in plans %}
+                        <option value="{{ plan.id }}" data-duration="{{ plan.duration_minutes }}">
+                            {{ plan.name }} - UGX {{ plan.price }} ({{ plan.duration_minutes|div:60|floatformat:0 }} hours)
+                        </option>
+                        {% empty %}
+                        <option value="" disabled>No plans available</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Pay with Airtel Money
+                </button>
+            </form>
         </div>
-        {% endif %}
+        
+        <!-- Activation Section -->
+        <div id="activation-section">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Activate with Token</h2>
+            <form id="activation-form" action="{% url 'activate_token' company_id=company.id %}" method="post" class="space-y-4">
+                <div class="flex flex-col">
+                    <label for="token" class="text-sm font-medium text-gray-700 mb-1">Access Token</label>
+                    <input type="text" id="token" name="token" placeholder="Enter your 8-digit token" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Activate WiFi
+                </button>
+            </form>
+        </div>
+
     </div>
+
+    <script>
+        function showMessage(message, type) {
+            const messageBox = document.getElementById('message-box');
+            messageBox.textContent = message;
+            messageBox.className = 'mb-4 p-3 rounded-lg text-center';
+            if (type === 'success') {
+                messageBox.classList.add('bg-green-100', 'text-green-800');
+            } else if (type === 'error') {
+                messageBox.classList.add('bg-red-100', 'text-red-800');
+            }
+            messageBox.classList.remove('hidden');
+        }
+
+        document.getElementById('payment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const companyId = '{{ company.id }}';
+
+            try {
+                const response = await fetch(`/${companyId}/payment/callback/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage(result.message, 'success');
+                    // Automatically fill the token for the user
+                    document.getElementById('token').value = result.token;
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('An unexpected error occurred.', 'error');
+            }
+        });
+
+        document.getElementById('activation-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const companyId = '{{ company.id }}';
+
+            try {
+                const response = await fetch(`/${companyId}/activate/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage(result.message, 'success');
+                    // Redirect or show countdown for active session
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('An unexpected error occurred.', 'error');
+            }
+        });
+    </script>
 </body>
 </html>

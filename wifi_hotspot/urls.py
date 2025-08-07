@@ -1,35 +1,37 @@
 # wifi_hotspot/wifi_hotspot/urls.py
 
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path
 from django.shortcuts import redirect
-from django.conf.urls.static import static
-from django.conf import settings
 from core import views
-import uuid # Import the uuid module
+import uuid
 
 def root_redirect_view(request):
     """
-    Redirects the root URL to a placeholder company page to demonstrate the multi-tenancy structure.
+    Redirects the root URL to a placeholder company page.
+    This is useful for local testing or a default entry point.
     """
-    # Ensure the dummy_company_id is a valid UUID string
     dummy_company_id = '00000000-0000-0000-0000-000000000000'
     return redirect('hotspot_login_page', company_id=dummy_company_id)
 
 urlpatterns = [
     # The new root URL redirect
-    path('', root_redirect_view),
+    path('', root_redirect_view, name='root'),
+    
     path('admin/', admin.site.urls),
-    # The main login page for the hotspot
+    
+    # URL for the main hotspot login page with a company_id
     path('<uuid:company_id>/', views.hotspot_login_page, name='hotspot_login_page'),
-    # API endpoint to handle the token activation form submission
-    path('<uuid:company_id>/login/', views.activate_wifi, name='activate_wifi'),
-    # The new URL for activating a wifi session
-    path('<uuid:company_id>/activate/', views.activate_wifi, name='activate_wifi'),
-    # The new URL for initiating payment
-    path('<uuid:company_id>/initiate-payment/', views.initiate_payment_view, name='initiate_payment'),
+    
+    # URL for the payment callback (simulated Airtel Money)
+    path('<uuid:company_id>/payment/callback/', views.payment_callback_view, name='payment_callback_view'),
+    
+    # URL to activate a WiFi session with a token
+    path('<uuid:company_id>/activate/', views.activate_token, name='activate_token'),
+    
+    # URL for the admin dashboard for a specific company
+    path('<uuid:company_id>/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    
+    # URL to manually deactivate a session from the admin dashboard
+    path('<uuid:company_id>/session/<uuid:session_id>/deactivate/', views.manual_deactivate_session, name='manual_deactivate_session'),
 ]
-
-# Serve static files in development
-urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-

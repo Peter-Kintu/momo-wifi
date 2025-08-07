@@ -7,6 +7,7 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-@e^$b!q#^1234567890abcdefghijklmnopqrstuvwxyz')
 
@@ -25,7 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core',
+    'core', # Add our core app
 ]
 
 MIDDLEWARE = [
@@ -44,7 +45,7 @@ ROOT_URLCONF = 'wifi_hotspot.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'core', 'templates')],
+        'DIRS': [os.path.join(BASE_DIR, 'core/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -61,15 +62,18 @@ WSGI_APPLICATION = 'wifi_hotspot.wsgi.application'
 
 
 # Database
+# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 DATABASES = {
     'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}',
         conn_max_age=600
     )
 }
 
 
 # Password validation
+# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -87,6 +91,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
+# https://docs.djangoproject.com/en/4.2/topics/i18n/
+
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -97,46 +103,32 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/4.2/howto/static-files/
+
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
+# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# --- Custom Application Settings ---
-
-# MikroTik API Credentials
-MIKROTIK_HOST = os.environ.get('MIKROTIK_HOST', '192.168.88.1')  # Replace with your MikroTik's IP
-MIKROTIK_USER = os.environ.get('MIKROTIK_USER', 'admin')          # Replace with your MikroTik user
-MIKROTIK_PASSWORD = os.environ.get('MIKROTIK_PASSWORD', '')      # Replace with your MikroTik password
-
-# Africa's Talking SMS API Credentials
-AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY', '')
-AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
-AFRICASTALKING_SENDER_ID = os.environ.get('AFRICASTALKING_SENDER_ID', None)
-
-
-# --- Jazzmin Admin Theme Settings ---
-
+# JAZZMIN_SETTINGS
 JAZZMIN_SETTINGS = {
-    "site_title": "WiFi Hotspot Admin",
-    "site_header": "WiFi Hotspot",
-    "site_brand": "WiFi Hotspot",
-    "site_logo": "images/logo.png",
-    "login_logo": None,
-    "login_logo_dark": None,
-    "site_logo_classes": "img-circle",
-    "site_icon": None,
-    "welcome_sign": "Welcome to the WiFi Hotspot Admin Panel",
-    "site_brand_color": "navbar-dark",
-    "site_brand_text_color": "text-light",
-    "site_menu_title": "Menu",
-    "show_sidebar_brand": True,
+    "site_title": "Wifi Hotspot Admin",
+    "site_header": "Wifi Hotspot",
+    "site_brand": "Wifi Hotspot",
+    "welcome_sign": "Welcome to the Wifi Hotspot Admin Panel",
+    "copyright": "Wifi Hotspot",
+    "topmenu_links": [
+        {"name": "Home",  "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "Support", "url": "https://github.com/farrid/django-jazzmin/issues"},
+    ],
+    "hide_apps": ["auth"],
     "icons": {
-        "auth": "fas fa-users-cog",
-        "auth.user": "fas fa-user",
+        "auth.User": "fas fa-user",
         "auth.Group": "fas fa-users",
         "core.Plan": "fas fa-wifi",
         "core.WifiSession": "fas fa-ticket-alt",
@@ -171,16 +163,19 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    "theme": "united",
+    "theme": "default",
     "dark_mode_theme": None,
     "button_classes": {
-        "primary": "btn-outline-primary",
-        "secondary": "btn-outline-secondary",
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
         "info": "btn-info",
         "warning": "btn-warning",
         "danger": "btn-danger",
         "success": "btn-success"
     },
-    "actions_sticky_top": False
+    "actions_classes": {
+        "omg": "btn-danger",
+        "danger": "btn-danger",
+        "success": "btn-success"
+    }
 }
-
