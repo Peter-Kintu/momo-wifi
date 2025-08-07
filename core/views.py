@@ -1,10 +1,12 @@
 # wifi_hotspot/core/views.py
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import  redirect, render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from .models import WifiSession, Plan, Company, Payment
-from .payment_services import get_savanna_access_token
+# The MikroTik API is no longer used directly in the views. The WifiSession model's
+# methods now handle the router API calls, making this import unnecessary.
+from .payment_services import get_airtel_access_token, initiate_airtel_payment, handle_airtel_payment_callback
 import logging
 from django.http import JsonResponse
 from django.db import transaction
@@ -27,7 +29,49 @@ def hotspot_login_page(request, company_id):
     return render(request, 'core/hotspot_login.html', {'plans': plans, 'company': company})
 
 @csrf_exempt
-def payment_callback_view(request, company_id):
+def activate_wifi(request, company_id):
+    """
+    Handles the POST request to activate a WiFi session with a token.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            token = data.get('token')
+            company = get_object_or_404(Company, id=company_id)
+
+            if not token:
+                return JsonResponse({'message': 'Token is required.'}, status=400)
+
+            # Check for an active session with the provided token and company
+            session = get_object_or_404(WifiSession, token=token, company=company, is_active=False)
+
+            # Get the client's IP address from the request
+            ip_address = request.META.get('REMOTE_ADDR')
+
+            # Activate the session using the model's method, which handles the Savanna API call.
+            success, message = session.activate(ip_address)
+
+            if success:
+                return JsonResponse({
+                    'message': 'WiFi activated successfully!',
+                    'expires_at': session.end_time.isoformat()
+                })
+            else:
+                return JsonResponse({'message': message}, status=500)
+
+        except WifiSession.DoesNotExist:
+            return JsonResponse({'message': 'Invalid or expired token.'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'message': 'Invalid JSON.'}, status=400)
+        except Exception as e:
+            logger.error(f"Error activating token: {e}")
+            return JsonResponse({'message': f'An unexpected error occurred: {e}'}, status=500)
+
+    return JsonResponse({'message': 'Invalid request method.'}, status=405)
+
+
+@csrf_exempt
+def initiate_payment_view(request, company_id):
     """
     Handles the payment initiation and creates a pending WifiSession.
     """
@@ -36,64 +80,102 @@ def payment_callback_view(request, company_id):
             data = json.loads(request.body)
             phone_number = data.get('phone_number')
             plan_id = data.get('plan_id')
+            company = get_object_or_404(Company, id=company_id)
 
             if not phone_number or not plan_id:
-                return JsonResponse({'message': 'Missing phone number or plan_id.'}, status=400)
+                return JsonResponse({'message': 'Phone number and plan are required.'}, status=400)
 
-            company = get_object_or_404(Company, id=company_id)
+            # Look up the plan
             plan = get_object_or_404(Plan, id=plan_id, company=company)
             
-            # Here we'd integrate with the Savanna API.
-            # For now, we'll simulate a successful payment and create an active session.
-            logger.info(f"Simulating payment for phone: {phone_number}, plan: {plan.name} at company: {company.name}")
-            
-            # The transaction will ensure the session and payment are saved atomically.
-            with transaction.atomic():
-                session = WifiSession.objects.create(
-                    company=company,
-                    phone_number=phone_number,
-                    plan=plan,
-                    is_active=True, # Session is active immediately since there is no MikroTik to enable
-                    start_time = timezone.now(),
-                    end_time = timezone.now() + timezone.timedelta(minutes=plan.duration_minutes),
-                    token=str(uuid.uuid4())[:8].upper() # Generate a simple token
-                )
-                
-                Payment.objects.create(
-                    session=session,
-                    amount=plan.price,
-                    transaction_id=str(uuid.uuid4()), # Placeholder transaction ID
-                    status='SUCCESS'
-                )
+            # Initiate payment via the payment_services module
+            success, message = initiate_airtel_payment(plan, phone_number, company)
 
-            return JsonResponse({'message': 'Payment successful. Your session is now active.', 'token': session.token})
-        
+            if success:
+                return JsonResponse({'message': message})
+            else:
+                return JsonResponse({'message': message}, status=500)
+
+        except Plan.DoesNotExist:
+            return JsonResponse({'message': 'Invalid plan selected.'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'message': 'Invalid JSON.'}, status=400)
         except Exception as e:
-            logger.error(f"Error in payment_callback_view for company {company_id}: {e}")
+            logger.error(f"Error in initiate_payment_view: {e}")
             return JsonResponse({'message': f'An unexpected error occurred: {e}'}, status=500)
-    
+
     return JsonResponse({'message': 'Invalid request method.'}, status=405)
 
+@csrf_exempt
+def payment_callback_view(request, company_id):
+    """
+    Handles the callback from the payment gateway to finalize a payment.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            company = get_object_or_404(Company, id=company_id)
+
+            # Corrected function call to match the name in payment_services.py
+            success, message = handle_airtel_payment_callback(data, company)
+
+            if success:
+                return JsonResponse({'status': 'success', 'message': message})
+            else:
+                return JsonResponse({'status': 'failed', 'message': message}, status=400)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'failed', 'message': 'Invalid JSON in callback.'}, status=400)
+        except Exception as e:
+            logger.error(f"Error in payment_callback_view: {e}")
+            return JsonResponse({'status': 'failed', 'message': f'An unexpected error occurred: {e}'}, status=500)
+
+    return JsonResponse({'message': 'Invalid request method.'}, status=405)
 
 def admin_dashboard(request, company_id):
     """
-    Renders a simple admin dashboard with a list of active sessions for a company.
+    Renders a simple admin dashboard showing active WiFi sessions.
     """
     company = get_object_or_404(Company, id=company_id)
-    active_sessions = WifiSession.objects.filter(company=company, is_active=True).order_by('-start_time')
-    
-    # Example of how to add a calculated property for time remaining
+    # Fetch all active sessions for the specific company
+    active_sessions = WifiSession.objects.filter(
+        company=company,
+        is_active=True,
+        end_time__gt=timezone.now()
+    ).order_by('-start_time')
+
+    # Calculate time remaining for each session
     for session in active_sessions:
-        if session.end_time:
-            time_remaining = session.end_time - timezone.now()
-            seconds = int(time_remaining.total_seconds())
-            if seconds > 0:
-                hours = seconds // 3600
-                minutes = (seconds % 3600) // 60
-                session.time_remaining = f"{hours}h {minutes}m"
-            else:
-                session.time_remaining = "Expired"
+        time_left = session.end_time - timezone.now()
+        total_seconds = int(time_left.total_seconds())
+        
+        if total_seconds > 0:
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            session.time_remaining = f"{hours}h {minutes}m {seconds}s"
         else:
-            session.time_remaining = "N/A"
-            
+            session.time_remaining = "Expired"
+
     return render(request, 'core/admin_dashboard.html', {'company': company, 'active_sessions': active_sessions})
+
+def manual_deactivate_session(request, company_id, session_id):
+    """
+    Deactivates a WiFi session manually from the admin dashboard.
+    """
+    if request.method == 'GET':
+        company = get_object_or_404(Company, id=company_id)
+        session = get_object_or_404(WifiSession, id=session_id, company=company, is_active=True)
+
+        try:
+            # Deactivate the session using the model's method, which handles the Savanna API call.
+            success, message = session.deactivate()
+            
+            if success:
+                return redirect('admin_dashboard', company_id=company.id)
+            else:
+                logger.error(f"Failed to deactivate session {session_id}: {message}")
+                return redirect('admin_dashboard', company_id=company.id)
+        except Exception as e:
+            logger.error(f"Error manually deactivating session {session_id}: {e}")
+            return redirect('admin_dashboard', company_id=company.id)
