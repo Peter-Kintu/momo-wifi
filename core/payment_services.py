@@ -9,6 +9,7 @@ from django.db import transaction
 
 from .models import Company, WifiSession, Payment, Plan
 from .savanna_api import create_savanna_user, disable_savanna_user
+from .router_control import enable_router_user
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +36,13 @@ def get_airtel_access_token(company: Company):
         logger.error(f"Error getting Airtel access token for company '{company.name}': {e}")
         return None
 
-def initiate_airtel_payment(session: WifiSession):
+def initiate_airtel_payment(session: WifiSession, phone_number: str):
     """
-    Initiates a payment request with Airtel Money.
-    This function is a placeholder and would be replaced with actual API calls.
-    """
-    company = session.company
+    Initiates a simulated payment via Airtel and creates a pending Payment record.
     
-    # Placeholder for a successful payment response from Airtel
-    # In a real scenario, this would be an API call to Airtel, which returns a transaction ID.
+    In a real implementation, this would call the Airtel API.
+    """
+    # Placeholder for the Airtel API call which returns a transaction ID.
     transaction_id = str(uuid.uuid4())
     
     # Create a pending payment record
@@ -73,7 +72,7 @@ def handle_airtel_payment_callback(company, transaction_id: str):
         payment.save()
         
         # Activate the session and create the Savanna user
-        session.activate(session.ip_address)
+        session.activate(session.ip_address, session.mac_address)
         
         return True, "Payment and session activation successful."
             
@@ -82,4 +81,4 @@ def handle_airtel_payment_callback(company, transaction_id: str):
         return False, "Transaction not found."
     except Exception as e:
         logger.error(f"An unexpected error occurred processing Airtel callback for transaction {transaction_id}: {e}")
-        return False, f"An internal error occurred: {e}"
+        return False, "An internal error occurred."

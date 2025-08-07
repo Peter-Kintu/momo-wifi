@@ -36,21 +36,20 @@ def create_savanna_user(company, username: str, ip_address: str, plan):
     """
     Creates a user on the Savanna hotspot using the provided plan's profile.
     
-    This is a placeholder for the actual API call. The user is associated with a
-    session and their IP address is whitelisted for the plan's duration.
+    This is a placeholder for the actual API call.
     """
     api_details, message = connect_to_savanna(company)
     if not api_details:
         return False, message
-
-    url = f"{api_details['url']}/users"
-    payload = {
-        "username": username,
-        "password": username, # Using the token as a password for simplicity
-        "ip_address": ip_address,
-        "profile": plan.name, # Use the plan's name as the profile
-        "duration": plan.duration_minutes
-    }
+    
+    # In a real-world scenario, this would be an API call to Savanna.
+    # For this simulation, we'll log the action and return success.
+    # url = f"{api_details['url']}/users"
+    # payload = {
+    #     'username': username,
+    #     'ip_address': ip_address,
+    #     'profile': plan.name, # Assuming the profile name is the plan name
+    # }
 
     try:
         # Simulate a successful API response
@@ -82,5 +81,5 @@ def disable_savanna_user(company, username: str):
         logger.info(f"Simulated deletion of Savanna user '{username}' for company '{company.name}'.")
         return True, "Savanna user disabled successfully."
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error disabling Savanna user '{username}' for company '{company.name}': {e}")
+        logger.error(f"Error disabling Savanna user for company '{company.name}': {e}")
         return False, f"Error disabling Savanna user: {e}"

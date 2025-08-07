@@ -42,7 +42,7 @@ class PaymentAdmin(admin.ModelAdmin):
     """
     Admin view for the Payment model.
     """
-    list_display = ('session', 'transaction_id', 'amount', 'status', 'timestamp')
+    list_display = ('id', 'session', 'amount', 'status', 'created_at')
     list_filter = ('status',)
-    search_fields = ('transaction_id', 'session__phone_number')
-    readonly_fields = ('session', 'transaction_id', 'amount', 'status', 'timestamp')
+    search_fields = ('session__phone_number', 'transaction_id')
+    readonly_fields = ('session', 'transaction_id', 'amount', 'status', 'created_at', 'updated_at')
